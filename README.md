@@ -1,16 +1,55 @@
-# myapp
+# 💬 Chativio
 
-A new Flutter project.
+Chativio is a **free, offline, friend-like chatbot app** built with Flutter.  
+It feels like a real friend — chatting naturally, remembering past conversations, reminding you of events, and even telling you stories.  
 
-## Getting Started
+---
 
-This project is a starting point for a Flutter application.
+## ✨ Features
+- 🟦 **Chat Screen** → Talk to Chativio like a real friend.  
+- 📅 **Events** → Detects meetings/events from chats and reminds you.  
+- 📖 **Stories** → Learn through fun, short stories.  
+- 👤 **Profile** → Manage your app settings and personalization.  
+- 🌗 **Dark & Light Themes** → Matches system theme automatically.  
+- 🚀 **Offline-first** → Stores chats and data locally (using Hive/SQLite).  
 
-A few resources to get you started if this is your first Flutter project:
+---
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+## 📱 Screens
+- **Splash Screen** → Animated glowing logo  
+- **Onboarding** → Shown on first launch only  
+- **Home (MainWrapper)** → Bottom navigation with:
+  - Chat  
+  - Events  
+  - Stories  
+  - Profile  
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+---
+
+## 🛠️ Tech Stack
+- **Flutter** (cross-platform UI)  
+- **Dart**  
+- **Hive / SQLite** (local storage)  
+- **SharedPreferences** (first-launch check)  
+
+---
+
+## ▶️ Getting Started
+
+### Prerequisites
+- [Flutter SDK](https://docs.flutter.dev/get-started/install) (3.x or higher)
+- Android Studio / VS Code with Flutter plugin  
+
+### Run Locally
+```bash
+# Clone this repository
+git clone https://github.com/your-username/chativio.git
+
+# Go into the project folder
+cd chativio
+
+# Get dependencies
+flutter pub get
+
+# Run the app
+flutter run
