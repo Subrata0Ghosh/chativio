@@ -46,8 +46,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (!isUser)
             const CircleAvatar(
               radius: 16,
-              child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
               backgroundColor: Colors.blueAccent,
+              child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
+              
             ),
           if (!isUser) const SizedBox(width: 6),
           Flexible(
@@ -78,8 +79,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           if (isUser)
             const CircleAvatar(
               radius: 16,
-              child: Icon(Icons.person, size: 18, color: Colors.white),
               backgroundColor: Colors.grey,
+              child: Icon(Icons.person, size: 18, color: Colors.white),
+              
             ),
         ],
       ),
