@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/services/nlp_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,12 +13,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _lastMood = "neutral";
   Box? _chatBox;
   bool _notificationsEnabled = true;
+  bool _memoryConsent = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _initHiveAndLoadSettings();
+    _initMemoryConsent();
+  }
+
+  Future<void> _initMemoryConsent() async {
+    await NlpService().init();
+    setState(() {
+      _memoryConsent = NlpService().memoryConsent;
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -98,6 +105,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 onChanged: (v) async {
                   setState(() => _notificationsEnabled = v);
                   try { await _chatBox?.put('settings_notificationsEnabled', v); } catch (_) {}
+                },
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.memory, color: Colors.orange),
+              title: const Text("Memory Consent"),
+              subtitle: const Text("Allow AI to remember personal details"),
+              trailing: Switch(
+                value: _memoryConsent,
+                onChanged: (v) async {
+                  setState(() => _memoryConsent = v);
+                  await NlpService().setMemoryConsent(v);
                 },
               ),
             ),

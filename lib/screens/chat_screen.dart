@@ -8,11 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:myapp/services/notification_service.dart';
-import 'package:share_plus/share_plus.dart';
-import './settings_screen.dart';
-import '../secrets.dart'; // 
-import 'package:myapp/services/nlp_service.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -155,6 +151,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _eveningHour = 19;
   int _eveningMinute = 0;
   int _contentMixFunny = 40; // percent 0..100
+
+  stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
 
   @override
   void initState() {
@@ -1346,6 +1345,26 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _saveChatHistory();
   }
 
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) => print('onStatus: $val'),
+        onError: (val) => print('onError: $val'),
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _controller.text = val.recognizedWords;
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
   bool _isLastInGroup(int msgIndex) {
     if (msgIndex < 0 || msgIndex >= _messages.length) return true;
     final current = _messages[msgIndex];
@@ -1819,6 +1838,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                           horizontal: 16,
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: _isListening ? Colors.red : Colors.blueAccent,
+                    child: IconButton(
+                      icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
+                      color: Colors.white,
+                      onPressed: _listen,
                     ),
                   ),
                   const SizedBox(width: 8),
