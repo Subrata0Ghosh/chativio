@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:myapp/screens/chat_screen.dart';
-// import 'package:myapp/screens/events_screen.dart';
-// import 'package:myapp/screens/stories_screen.dart';
+import 'package:myapp/screens/events_screen.dart';
+import 'package:myapp/screens/stories_screen.dart';
 import 'package:myapp/screens/profile_screen.dart';
 
 class MainWrapper extends StatefulWidget {
@@ -16,8 +16,8 @@ class _MainWrapperState extends State<MainWrapper> {
 
   final List<Widget> _pages = const [
     ChatScreen(),
-    // EventsScreen(),
-    // StoriesScreen(),
+    EventsScreen(),
+    StoriesScreen(),
     ProfileScreen(),
   ];
 
@@ -37,8 +37,8 @@ class _MainWrapperState extends State<MainWrapper> {
         onTap: _onItemTapped,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chat"),
-          // BottomNavigationBarItem(icon: Icon(Icons.event), label: "Events"),
-          // BottomNavigationBarItem(icon: Icon(Icons.book), label: "Stories"),
+          BottomNavigationBarItem(icon: Icon(Icons.event), label: "Events"),
+          BottomNavigationBarItem(icon: Icon(Icons.book), label: "Stories"),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
         ],
       ),

@@ -33,3 +33,6 @@
 /android/local.properties
 /android/.gradle/
 /android/app/src/main/assets/flutter_assets/
+
+# App secrets
+/lib/secrets.dart

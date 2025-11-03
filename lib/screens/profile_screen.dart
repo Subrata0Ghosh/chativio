@@ -1,12 +1,221 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  String _userName = "User";
+  String _aiName = "Chativio";
+  String _lastMood = "neutral";
+  Box? _chatBox;
+  bool _notificationsEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _initHiveAndLoadSettings();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _userName = prefs.getString("user_name") ?? "User";
+      _aiName = prefs.getString("ai_name") ?? "Chativio";
+      _lastMood = prefs.getString("last_mood") ?? "neutral";
+    });
+  }
+
+  Future<void> _clearAppData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    try { await _chatBox?.clear(); } catch (_) {}
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("All app data cleared successfully!"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _initHiveAndLoadSettings() async {
+    try {
+      if (!Hive.isBoxOpen('chat')) {
+        try { await Hive.initFlutter(); } catch (_) {}
+        _chatBox = await Hive.openBox('chat');
+      } else {
+        _chatBox = Hive.box('chat');
+      }
+      setState(() {
+        _notificationsEnabled = (_chatBox?.get('settings_notificationsEnabled', defaultValue: true) as bool?) ?? true;
+      });
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: Text("profile")),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Profile & Settings"),
+        centerTitle: true,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            CircleAvatar(
+              radius: 45,
+              backgroundColor: Colors.blueAccent.withValues(alpha: .2),
+              child: const Icon(Icons.person, size: 50, color: Colors.blue),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _userName,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            Text(
+              "Mood: $_lastMood",
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 30),
+
+            // 🌤 Settings options
+            ListTile(
+              leading: const Icon(Icons.notifications_active, color: Colors.deepPurple),
+              title: const Text("Notifications"),
+              subtitle: Text(_notificationsEnabled ? "Enabled" : "Disabled"),
+              trailing: Switch(
+                value: _notificationsEnabled,
+                onChanged: (v) async {
+                  setState(() => _notificationsEnabled = v);
+                  try { await _chatBox?.put('settings_notificationsEnabled', v); } catch (_) {}
+                },
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.smart_toy, color: Colors.blue),
+              title: const Text("AI Name"),
+              subtitle: Text(_aiName),
+              trailing: const Icon(Icons.edit),
+              onTap: () => _editAiNameDialog(),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline, color: Colors.green),
+              title: const Text("Change Username"),
+              subtitle: Text(_userName),
+              trailing: const Icon(Icons.edit),
+              onTap: () => _editUserNameDialog(),
+            ),
+
+            const Divider(height: 40),
+
+            // 🧹 Clear app data
+            ListTile(
+              leading: const Icon(Icons.delete_forever, color: Colors.red),
+              title: const Text("Clear App Data"),
+              subtitle: const Text("Erase chat history, memory, and preferences"),
+              onTap: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text("Confirm Clear"),
+                    content: const Text(
+                        "Are you sure you want to clear all app data? This will delete all chat history and settings."),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text("Cancel"),
+                      ),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent),
+                        child: const Text("Clear"),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await _clearAppData();
+                  setState(() {
+                    _userName = "User";
+                    _aiName = "Chativio";
+                    _lastMood = "neutral";
+                  });
+                }
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
-}// TODO Implement this library.
+
+  // ✏️ Edit username dialog
+  Future<void> _editUserNameDialog() async {
+    final controller = TextEditingController(text: _userName);
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Change Your Name"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: "Enter new name"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString("user_name", controller.text.trim());
+              setState(() => _userName = controller.text.trim());
+              if (!context.mounted) return; 
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ✏️ Edit AI name dialog
+  Future<void> _editAiNameDialog() async {
+    final controller = TextEditingController(text: _aiName);
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Change AI Name"),
+        content: TextField(
+          controller: controller,
+          decoration: const InputDecoration(labelText: "Enter new AI name"),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+          ElevatedButton(
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setString("ai_name", controller.text.trim());
+              setState(() => _aiName = controller.text.trim());
+              if (!context.mounted) return; 
+              Navigator.pop(context);
+            },
+            child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+}
