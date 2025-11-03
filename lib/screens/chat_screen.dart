@@ -9,6 +9,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
@@ -163,6 +165,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   final FlutterTts _tts = FlutterTts();
   bool _voiceResponses = false;
+
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -1394,6 +1398,51 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
     }
   }
 
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
+    if (image != null) {
+      setState(() {
+        _messages.add({
+          "user_image": image.path,
+          "time": _nowHHmm(),
+          "status": "sent",
+          "ts": DateTime.now().millisecondsSinceEpoch.toString(),
+        });
+      });
+      _scrollToBottom();
+      _saveChatHistory();
+      // Optionally, send to AI for description, but skip for now
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera),
+              title: const Text('Camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   bool _isLastInGroup(int msgIndex) {
     if (msgIndex < 0 || msgIndex >= _messages.length) return true;
     final current = _messages[msgIndex];
@@ -1470,8 +1519,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   }
   Widget _buildMessageAt(int msgIndex) {
     final message = _messages[msgIndex];
-    final isUser = message.containsKey("user");
-    final text = isUser ? message["user"]! : message["bot"]!;
+    final isUser = message.containsKey("user") || message.containsKey("user_image");
+    final hasImage = message.containsKey("user_image");
+    final text = hasImage ? null : (isUser ? message["user"]! : message["bot"]!);
+    final imagePath = hasImage ? message["user_image"] : null;
     final time = message["time"] ?? "";
     final status = message["status"]; // sent | delivered | seen
     final lastInGroup = _isLastInGroup(msgIndex);
@@ -1501,13 +1552,24 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
             crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                text,
-                style: TextStyle(color: isUser ? Colors.white : Colors.black87),
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                maxLines: null,
-              ),
+              if (hasImage && imagePath != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(imagePath),
+                    width: 200,
+                    height: 200,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              if (text != null)
+                Text(
+                  text,
+                  style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  maxLines: null,
+                ),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1589,7 +1651,8 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   Future<void> _onLongPressMessage(int index) async {
     if (index < 0 || index >= _messages.length) return;
     final m = _messages[index];
-    final text = m['user'] ?? m['bot'] ?? '';
+    final hasImage = m.containsKey("user_image");
+    final text = hasImage ? null : (m['user'] ?? m['bot'] ?? '');
     if (!context.mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -1597,46 +1660,48 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         return SafeArea(
           child: Wrap(
             children: [
-              ListTile(
-                leading: const Icon(Icons.content_copy),
-                title: const Text('Copy'),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: text));
-                  if (!mounted) return;
-                  if (!ctx.mounted) return;
-                  Navigator.pop(ctx);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.forward),
-                title: const Text('Forward'),
-                onTap: () async {
-                  if (!ctx.mounted) return;
-                  Navigator.pop(ctx);
-                  await Future.delayed(const Duration(milliseconds: 50));
-                  if (!mounted) return;
-                  await Share.share(text);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.select_all),
-                title: const Text('Select text'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Select text'),
-                      content: SelectableText(text),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-                      ],
-                    ),
-                  );
-                },
-              ),
+              if (!hasImage) ...[
+                ListTile(
+                  leading: const Icon(Icons.content_copy),
+                  title: const Text('Copy'),
+                  onTap: () async {
+                    await Clipboard.setData(ClipboardData(text: text!));
+                    if (!mounted) return;
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forward),
+                  title: const Text('Forward'),
+                  onTap: () async {
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    await Future.delayed(const Duration(milliseconds: 50));
+                    if (!mounted) return;
+                    await Share.share(text!);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.select_all),
+                  title: const Text('Select text'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Select text'),
+                        content: SelectableText(text!),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Delete'),
@@ -1872,6 +1937,15 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                           horizontal: 16,
                         ),
                       ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: Colors.blueAccent,
+                    child: IconButton(
+                      icon: const Icon(Icons.image, color: Colors.white),
+                      onPressed: () => _showImageSourceDialog(),
                     ),
                   ),
                   const SizedBox(width: 8),
