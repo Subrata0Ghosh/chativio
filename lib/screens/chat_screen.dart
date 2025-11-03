@@ -12,6 +12,7 @@ import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
 import '../secrets.dart'; // 
+import 'package:myapp/services/nlp_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -159,6 +160,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     ChatScreen.isOpen = true;
+    NlpService().init();
     _loadOnboardingScreenData().then((_) {
       _loadChatHistory();
     });
@@ -1093,6 +1095,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // 🧠 Refocus after sending message
     FocusScope.of(context).requestFocus(_focusNode);
 
+    // 🔍 NLP: Parse for schedule commands
+    final scheduleCmd = NlpService().parseScheduleCommand(text);
+    if (scheduleCmd != null) {
+      final event = scheduleCmd['event'] as String;
+      final dateTime = scheduleCmd['dateTime'] as DateTime;
+      // Suggest creating the event
+      await _suggestScheduleEvent(event, dateTime);
+      return; // Stop further processing
+    }
+
     // 📅 Events: intercept create/edit/delete intents from user text
     final handledEvent = await _handleEventIntent(text);
     if (handledEvent) {
@@ -1283,6 +1295,55 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _isTyping = false;
       });
     }
+  }
+
+  // 🔍 NLP: Suggest scheduling an event
+  Future<void> _suggestScheduleEvent(String event, DateTime dateTime) async {
+    final formattedTime = DateFormat('EEE, MMM d • h:mm a').format(dateTime);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Schedule Event?'),
+        content: Text('I detected you want to schedule: "$event" for $formattedTime. Create this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final id = DateTime.now().microsecondsSinceEpoch % 1000000000;
+      final events = await _loadEvents();
+      events.add({
+        'id': id,
+        'title': event,
+        'description': '',
+        'datetime': dateTime,
+      });
+      events.sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+      await _saveEvents(events);
+      if (_notificationsEnabled) {
+        await NotificationService.instance.scheduleAt(
+          id: id,
+          title: 'Reminder',
+          body: '$event • $formattedTime',
+          when: dateTime,
+        );
+      }
+      await _streamBotReply("Got it! I scheduled '$event' for $formattedTime.");
+    } else {
+      await _streamBotReply("Alright, if you change your mind, just tell me!");
+    }
+
+    setState(() { _isTyping = false; });
+    _saveChatHistory();
   }
 
   bool _isLastInGroup(int msgIndex) {
