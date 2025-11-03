@@ -79,23 +79,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width * 0.05,
+          vertical: 20,
+        ),
         child: Column(
           children: [
             const SizedBox(height: 20),
             CircleAvatar(
-              radius: 45,
+              radius: MediaQuery.of(context).size.width > 600 ? 60 : 45,
               backgroundColor: Colors.blueAccent.withValues(alpha: .2),
-              child: const Icon(Icons.person, size: 50, color: Colors.blue),
+              child: Icon(
+                Icons.person,
+                size: MediaQuery.of(context).size.width > 600 ? 60 : 50,
+                color: Colors.blue,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               _userName,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width > 600 ? 24 : 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Text(
               "Mood: $_lastMood",
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: MediaQuery.of(context).size.width > 600 ? 16 : 14,
+              ),
             ),
             const SizedBox(height: 30),
 
