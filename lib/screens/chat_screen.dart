@@ -1563,14 +1563,21 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
           decoration: BoxDecoration(
             gradient: isUser
-                ? const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)])
-                : const LinearGradient(colors: [Color(0xFFE0E0E0), Color(0xFFF5F5F5)]),
+                ? const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)])
+                : const LinearGradient(colors: [Color(0xFFF093FB), Color(0xFFF5576C)]),
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(20),
-              topRight: const Radius.circular(20),
-              bottomLeft: Radius.circular(isUser ? 20 : 0),
-              bottomRight: Radius.circular(isUser ? 0 : 20),
+              topLeft: const Radius.circular(24),
+              topRight: const Radius.circular(24),
+              bottomLeft: Radius.circular(isUser ? 24 : 4),
+              bottomRight: Radius.circular(isUser ? 4 : 24),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: (isUser ? Colors.purple : Colors.pink).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -1622,52 +1629,64 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
 
     final separator = _maybeSeparatorAbove(msgIndex);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (separator != null) separator,
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Row(
-                mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (!isUser)
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.blueAccent,
-                      child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
-                    ),
-                  if (!isUser) const SizedBox(width: 6),
-                  bubble,
-                  if (isUser) const SizedBox(width: 6),
-                  if (isUser)
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey,
-                      child: Icon(Icons.person, size: 18, color: Colors.white),
-                    ),
-                ],
-              ),
-              if (lastInGroup)
-                Positioned(
-                  bottom: 0,
-                  left: isUser ? null : 34,
-                  right: isUser ? 34 : null,
-                  child: CustomPaint(
-                    size: const Size(10, 10),
-                    painter: _BubbleTail(
-                      color: isUser ? const Color(0xFF6C63FF) : const Color(0xFFE0E0E0),
-                      isUser: isUser,
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(message["ts"]), // animate per message
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: child,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (separator != null) separator,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Row(
+                  mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!isUser)
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.pinkAccent,
+                        child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
+                      ),
+                    if (!isUser) const SizedBox(width: 6),
+                    bubble,
+                    if (isUser) const SizedBox(width: 6),
+                    if (isUser)
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.purpleAccent,
+                        child: Icon(Icons.person, size: 18, color: Colors.white),
+                      ),
+                  ],
+                ),
+                if (lastInGroup)
+                  Positioned(
+                    bottom: 0,
+                    left: isUser ? null : 34,
+                    right: isUser ? 34 : null,
+                    child: CustomPaint(
+                      size: const Size(10, 10),
+                      painter: _BubbleTail(
+                        color: isUser ? const Color(0xFF667EEA) : const Color(0xFFF093FB),
+                        isUser: isUser,
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -8,33 +8,83 @@ class ThemeProvider extends ChangeNotifier {
 
   ThemeData get theme => _isDarkMode ? _darkTheme : _lightTheme;
 
-  static final _lightTheme = ThemeData(
+  static final ColorScheme _lightColorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.blueAccent,
     brightness: Brightness.light,
-    primaryColor: Colors.blueAccent,
-    scaffoldBackgroundColor: Colors.white,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: Colors.blueAccent,
-      foregroundColor: Colors.white,
+    primary: Colors.blueAccent,
+    secondary: Colors.purpleAccent,
+    tertiary: Colors.tealAccent,
+    surface: Colors.white,
+    onSurface: Colors.black87,
+    surfaceContainerHighest: Colors.blue.shade50,
+  );
+
+  static final ColorScheme _darkColorScheme = ColorScheme.fromSeed(
+    seedColor: Colors.blueAccent,
+    brightness: Brightness.dark,
+    primary: Colors.blueAccent,
+    secondary: Colors.purpleAccent,
+    tertiary: Colors.tealAccent,
+    surface: Colors.grey.shade900,
+    onSurface: Colors.white,
+    surfaceContainerHighest: Colors.grey.shade800,
+  );
+
+  static final _lightTheme = ThemeData(
+    useMaterial3: true,
+    colorScheme: _lightColorScheme,
+    scaffoldBackgroundColor: _lightColorScheme.surface,
+    appBarTheme: AppBarTheme(
+      backgroundColor: _lightColorScheme.primaryContainer,
+      foregroundColor: _lightColorScheme.onPrimaryContainer,
+      elevation: 4,
+      shadowColor: _lightColorScheme.shadow,
     ),
-    cardColor: Colors.white,
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.black87),
-      bodyMedium: TextStyle(color: Colors.black87),
+    cardTheme: CardTheme(
+      elevation: 8,
+      shadowColor: _lightColorScheme.shadow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 4,
+        shadowColor: _lightColorScheme.shadow,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    textTheme: TextTheme(
+      headlineSmall: TextStyle(color: _lightColorScheme.onSurface, fontWeight: FontWeight.bold),
+      bodyLarge: TextStyle(color: _lightColorScheme.onSurface),
+      bodyMedium: TextStyle(color: _lightColorScheme.onSurfaceVariant),
     ),
   );
 
   static final _darkTheme = ThemeData(
-    brightness: Brightness.dark,
-    primaryColor: Colors.blueAccent,
-    scaffoldBackgroundColor: Colors.grey[900],
+    useMaterial3: true,
+    colorScheme: _darkColorScheme,
+    scaffoldBackgroundColor: _darkColorScheme.surface,
     appBarTheme: AppBarTheme(
-      backgroundColor: Colors.grey[850],
-      foregroundColor: Colors.white,
+      backgroundColor: _darkColorScheme.primaryContainer,
+      foregroundColor: _darkColorScheme.onPrimaryContainer,
+      elevation: 4,
+      shadowColor: _darkColorScheme.shadow,
     ),
-    cardColor: Colors.grey[800],
-    textTheme: const TextTheme(
-      bodyLarge: TextStyle(color: Colors.white),
-      bodyMedium: TextStyle(color: Colors.white70),
+    cardTheme: CardTheme(
+      elevation: 8,
+      shadowColor: _darkColorScheme.shadow,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        elevation: 4,
+        shadowColor: _darkColorScheme.shadow,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    textTheme: TextTheme(
+      headlineSmall: TextStyle(color: _darkColorScheme.onSurface, fontWeight: FontWeight.bold),
+      bodyLarge: TextStyle(color: _darkColorScheme.onSurface),
+      bodyMedium: TextStyle(color: _darkColorScheme.onSurfaceVariant),
     ),
   );
 
