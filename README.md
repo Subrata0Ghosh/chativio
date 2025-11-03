@@ -74,7 +74,7 @@
 
 | Splash Screen                                                                                          | Chat Interface                                                                                     | Events Screen                                                                                         |
 | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| ![Splash](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/splash_screen.png) | ![Chat](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/chat_screen.png) | ![Events](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/event_screen.png) |
+| ![Splash](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/master/assets/images/splash_screen.png) | ![Chat](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/master/assets/images/chat_screen.png) | ![Events](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/master/assets/images/event_screen.png) |
 
 *Screenshots of the app in action*
 
