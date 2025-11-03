@@ -160,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _eveningMinute = 0;
   int _contentMixFunny = 40; // percent 0..100
 
-  stt.SpeechToText _speech = stt.SpeechToText();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
   final FlutterTts _tts = FlutterTts();
