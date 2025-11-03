@@ -151,6 +151,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String aiGender = '';
   bool isFirstLaunch = true;
   Box? _chatBox;
+  Box? _cacheBox; // for offline responses
   bool _notificationsEnabled = true;
   bool _morningNudge = false;
   bool _eveningNudge = true;
@@ -263,6 +264,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _chatBox = await Hive.openBox('chat');
     } else {
       _chatBox = Hive.box('chat');
+    }
+    if (!Hive.isBoxOpen('cache')) {
+      try { await Hive.initFlutter(); } catch (_) {}
+      _cacheBox = await Hive.openBox('cache');
+    } else {
+      _cacheBox = Hive.box('cache');
     }
   }
 
@@ -1228,6 +1235,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         final data = jsonDecode(response.body);
         final reply = data["choices"][0]["message"]["content"].trim();
 
+        // Cache the response for offline use
+        await _cacheBox?.put(text, reply);
+
         // simulate delivery then seen for user's last message
         setState(() {
           _updateLastUserStatus("delivered");
@@ -1304,8 +1314,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
           debugPrint("API Error: ${response.statusCode} - ${response.reasonPhrase}");
           debugPrint("Response Body: ${response.body}");
         }
-        // Offline fallback
-        final offlineReply = _offlineReply();
+        // Offline fallback with cache check
+        final cachedReply = _cacheBox?.get(text) as String?;
+        final offlineReply = cachedReply ?? _offlineReply();
         setState(() {
           _messages.add({
             "bot": offlineReply,
@@ -1317,8 +1328,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       }
     } catch (e) {
       setState(() {
+        final cachedReply = _cacheBox?.get(text) as String?;
+        final offlineReply = cachedReply ?? _offlineReply();
         _messages.add({
-          "bot": _offlineReply(),
+          "bot": offlineReply,
           "time": _nowHHmm(),
           "ts": DateTime.now().millisecondsSinceEpoch.toString(),
         });
