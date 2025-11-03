@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/nlp_service.dart';
 import 'mood_journal_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -76,9 +77,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (_chatBox == null || !_chatBox!.isOpen) return;
       final messages = _chatBox!.get('messages') as List? ?? [];
       if (messages.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("No chat history to export.")),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No chat history to export.")),
+          );
+        }
         return;
       }
 
@@ -96,9 +99,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await Share.share(buffer.toString(), subject: 'Chativio Chat History');
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to export chat history.")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to export chat history.")),
+        );
+      }
     }
   }
 
