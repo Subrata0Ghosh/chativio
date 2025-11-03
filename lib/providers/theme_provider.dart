@@ -40,7 +40,7 @@ class ThemeProvider extends ChangeNotifier {
       elevation: 4,
       shadowColor: _lightColorScheme.shadow,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 8,
       shadowColor: _lightColorScheme.shadow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -69,7 +69,7 @@ class ThemeProvider extends ChangeNotifier {
       elevation: 4,
       shadowColor: _darkColorScheme.shadow,
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       elevation: 8,
       shadowColor: _darkColorScheme.shadow,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

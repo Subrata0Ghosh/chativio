@@ -26,7 +26,7 @@ class ChativioApp extends StatelessWidget {
           return MaterialApp(
             title: 'Chativio',
             debugShowCheckedModeBanner: false,
-            theme: themeProvider.theme.copyWith(useMaterial3: true),
+            theme: themeProvider.theme,
             home: const SplashScreen(),
           );
         },
