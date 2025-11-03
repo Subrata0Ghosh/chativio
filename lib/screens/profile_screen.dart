@@ -71,6 +71,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {}
   }
 
+  Future<void> _exportChatHistory() async {
+    try {
+      if (_chatBox == null || !_chatBox!.isOpen) return;
+      final messages = _chatBox!.get('messages') as List? ?? [];
+      if (messages.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No chat history to export.")),
+        );
+        return;
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln("Chativio Chat History - Exported on ${DateTime.now()}");
+      buffer.writeln("=" * 50);
+      buffer.writeln();
+
+      for (final msg in messages.reversed) {
+        final time = msg['time'] ?? '';
+        final text = msg.containsKey('user') ? 'You: ${msg['user']}' : 'AI: ${msg['bot']}';
+        buffer.writeln('[$time] $text');
+        buffer.writeln();
+      }
+
+      await Share.share(buffer.toString(), subject: 'Chativio Chat History');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to export chat history.")),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,6 +191,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
               ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.download, color: Colors.teal),
+              title: const Text("Export Chat History"),
+              subtitle: const Text("Save or share your chat conversations"),
+              onTap: _exportChatHistory,
             ),
 
             const Divider(height: 40),
