@@ -11,7 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:speech_to_text/speech_to_text.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
@@ -160,7 +160,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _eveningMinute = 0;
   int _contentMixFunny = 40; // percent 0..100
 
-  SpeechToText _speech = SpeechToText();
+  stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
   final FlutterTts _tts = FlutterTts();
@@ -1443,6 +1443,7 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         ),
       ),
     );
+  }
   String _offlineReply() {
     final replies = [
       "I'm offline right now, but I'm here with you in spirit! 🌟 What's on your mind?",
