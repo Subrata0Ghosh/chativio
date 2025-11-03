@@ -1568,8 +1568,8 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                   borderRadius: BorderRadius.circular(10),
                   child: Image.file(
                     File(imagePath),
-                    width: 200,
-                    height: 200,
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    height: MediaQuery.of(context).size.width * 0.6,
                     fit: BoxFit.cover,
                   ),
                 ),
@@ -1883,6 +1883,25 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
     }
   }
 
+  Widget _buildResponsiveButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool? isListening,
+  }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final radius = screenWidth < 400 ? 20.0 : 25.0; // Smaller on narrow screens
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: isListening == true ? Colors.red : Colors.blueAccent,
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: radius * 0.8),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: BoxConstraints(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1951,32 +1970,20 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                     ),
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Colors.blueAccent,
-                    child: IconButton(
-                      icon: const Icon(Icons.image, color: Colors.white),
-                      onPressed: () => _showImageSourceDialog(),
-                    ),
+                  _buildResponsiveButton(
+                    icon: Icons.image,
+                    onPressed: () => _showImageSourceDialog(),
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: _isListening ? Colors.red : Colors.blueAccent,
-                    child: IconButton(
-                      icon: Icon(_isListening ? Icons.mic_off : Icons.mic),
-                      color: Colors.white,
-                      onPressed: _listen,
-                    ),
+                  _buildResponsiveButton(
+                    icon: _isListening ? Icons.mic_off : Icons.mic,
+                    onPressed: _listen,
+                    isListening: _isListening,
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Colors.blueAccent,
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: _sendMessage,
-                    ),
+                  _buildResponsiveButton(
+                    icon: Icons.send,
+                    onPressed: _sendMessage,
                   ),
                 ],
               ),
