@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/notification_service.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -242,29 +241,10 @@ class _EventsScreenState extends State<EventsScreen> {
           title: Text(e["title"]),
           subtitle: Text("${e["description"]}\n$formattedTime"),
           isThreeLine: true,
-          trailing: IconButton(
-            icon: const Icon(Icons.calendar_month),
-            tooltip: 'Add to device calendar',
-            onPressed: () => _syncToCalendar(e),
-          ),
           onTap: () => _editEventDialog(e),
         ),
       ),
     );
-  void _syncToCalendar(Map<String, dynamic> e) {
-    final event = Event(
-      title: e['title'] as String,
-      description: e['description'] as String,
-      location: '',
-      startDate: e['datetime'] as DateTime,
-      endDate: (e['datetime'] as DateTime).add(const Duration(hours: 1)), // assume 1 hour
-    );
-    Add2Calendar.addEvent2Cal(event);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Event added to calendar')),
-      );
-    }
   }
 
   // ➕ Add new event manually
