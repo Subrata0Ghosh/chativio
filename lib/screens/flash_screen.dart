@@ -26,7 +26,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Animation for pulse effect
     _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+        AnimationController(vsync: this, duration: const Duration(seconds: 3))
           ..repeat(reverse: true);
 
     _animation = Tween<double>(begin: 0.9, end: 1.2).animate(
