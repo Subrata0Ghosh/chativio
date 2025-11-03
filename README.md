@@ -2,7 +2,7 @@
 
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/logo.png" alt="Chativio Logo" width="100" height="100"/>
+<img src="https://raw.githubusercontent.com/Subrata0Ghosh/chativio/refs/heads/master/assets/images/logo.png" alt="Chativio Logo" width="100" height="100"/>
 
 ![Chativio Logo](https://img.shields.io/badge/Chativio-AI%20Chatbot-blue?style=for-the-badge&logo=flutter&logoColor=white)
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
@@ -72,8 +72,8 @@
 
 <div align="center">
 
-| Splash Screen | Chat Interface | Events Screen |
-|---------------|----------------|---------------|
+| Splash Screen                                                                                          | Chat Interface                                                                                     | Events Screen                                                                                         |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | ![Splash](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/splash_screen.png) | ![Chat](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/chat_screen.png) | ![Events](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/event_screen.png) |
 
 *Screenshots of the app in action*
