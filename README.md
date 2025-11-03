@@ -2,13 +2,15 @@
 
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/logo.png" alt="Chativio Logo" width="100" height="100"/>
+
 ![Chativio Logo](https://img.shields.io/badge/Chativio-AI%20Chatbot-blue?style=for-the-badge&logo=flutter&logoColor=white)
 [![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev/)
 [![Dart](https://img.shields.io/badge/Dart-0175C2?style=for-the-badge&logo=dart&logoColor=white)](https://dart.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Stars](https://img.shields.io/github/stars/Subrata0Ghosh/chativio?style=for-the-badge)](https://github.com/Subrata0Ghosh/chativio)
 
-**Your AI Friend, Always Here** 💙  
+**Your AI Friend, Always Here** 💙
 *Powered by Flutter & OpenAI GPT-4o-mini*
 
 [📱 Download APK](#-getting-started) • [🌐 Live Demo](https://your-demo-link.com) • [📖 Documentation](#-features)
@@ -57,6 +59,7 @@
 </table>
 
 ### 🎯 Key Highlights
+
 - 🧠 **AI-Powered**: GPT-4o-mini for intelligent responses
 - ⚡ **Fast & Smooth**: Optimized animations and caching
 - 🔒 **Privacy-First**: All data stored locally
@@ -71,9 +74,9 @@
 
 | Splash Screen | Chat Interface | Events Screen |
 |---------------|----------------|---------------|
-| ![Splash](https://via.placeholder.com/200x400?text=Splash+Screen) | ![Chat](https://via.placeholder.com/200x400?text=Chat+Screen) | ![Events](https://via.placeholder.com/200x400?text=Events+Screen) |
+| ![Splash](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/splash_screen.png) | ![Chat](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/chat_screen.png) | ![Events](https://raw.githubusercontent.com/Subrata0Ghosh/chativio/main/assets/images/event_screen.png) |
 
-*Add actual screenshots here*
+*Screenshots of the app in action*
 
 </div>
 
@@ -83,14 +86,14 @@
 
 <div align="center">
 
-| Component | Technology |
-|-----------|------------|
-| **Framework** | ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat&logo=flutter&logoColor=white) |
-| **Language** | ![Dart](https://img.shields.io/badge/Dart-0175C2?style=flat&logo=dart&logoColor=white) |
-| **AI** | ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white) |
-| **Storage** | ![Hive](https://img.shields.io/badge/Hive-000000?style=flat&logo=hive&logoColor=white) |
-| **State** | ![Provider](https://img.shields.io/badge/Provider-000000?style=flat&logo=flutter&logoColor=white) |
-| **Voice** | ![Speech](https://img.shields.io/badge/Speech--to--Text-FF6B6B?style=flat&logo=google&logoColor=white) |
+| Component           | Technology                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Framework** | ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=flat&logo=flutter&logoColor=white)        |
+| **Language**  | ![Dart](https://img.shields.io/badge/Dart-0175C2?style=flat&logo=dart&logoColor=white)                 |
+| **AI**        | ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=flat&logo=openai&logoColor=white)           |
+| **Storage**   | ![Hive](https://img.shields.io/badge/Hive-000000?style=flat&logo=hive&logoColor=white)                 |
+| **State**     | ![Provider](https://img.shields.io/badge/Provider-000000?style=flat&logo=flutter&logoColor=white)      |
+| **Voice**     | ![Speech](https://img.shields.io/badge/Speech--to--Text-FF6B6B?style=flat&logo=google&logoColor=white) |
 
 </div>
 
@@ -99,6 +102,7 @@
 ## ▶️ Getting Started
 
 ### Prerequisites
+
 - ![Flutter](https://img.shields.io/badge/Flutter-3.x+-02569B?style=flat&logo=flutter&logoColor=white)
 - ![Android Studio](https://img.shields.io/badge/Android%20Studio-3DDC84?style=flat&logo=android-studio&logoColor=white) or VS Code
 - OpenAI API Key (free tier available)
@@ -106,30 +110,31 @@
 ### 🚀 Quick Setup
 
 1. **Clone & Setup** 📥
+
    ```bash
    git clone https://github.com/Subrata0Ghosh/chativio.git
    cd chativio
    flutter pub get
    ```
-
 2. **Add API Key** 🔑
+
    ```bash
    # Create lib/secrets.dart
    echo "const String openAIApiKey = 'your-api-key-here';" > lib/secrets.dart
    ```
-
 3. **Run App** ▶️
+
    ```bash
    flutter run
    ```
 
 ### 📦 Build for Production
 
-| Platform | Command |
-|----------|---------|
+| Platform              | Command                         |
+| --------------------- | ------------------------------- |
 | **Android APK** | `flutter build apk --release` |
-| **iOS** | `flutter build ios --release` |
-| **Web** | `flutter build web --release` |
+| **iOS**         | `flutter build ios --release` |
+| **Web**         | `flutter build web --release` |
 
 ---
 
@@ -181,7 +186,7 @@ We love contributions! 🎉
 
 [![MIT License](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-**This project is licensed under the MIT License**  
+**This project is licensed under the MIT License**
 *See [LICENSE](LICENSE) file for details*
 
 </div>
@@ -195,6 +200,7 @@ We love contributions! 🎉
 **Built with ❤️ by [Subrata Ghosh](https://github.com/Subrata0Ghosh)**
 
 *Special thanks to:*
+
 - OpenAI for GPT models 🤖
 - Flutter community for amazing framework 🚀
 - Material Design for beautiful UI guidelines 🎨
@@ -206,6 +212,7 @@ We love contributions! 🎉
 <div align="center">
 
 ### 🌟 Show some love!
+
 [![GitHub stars](https://img.shields.io/github/stars/Subrata0Ghosh/chativio?style=social)](https://github.com/Subrata0Ghosh/chativio)
 [![GitHub forks](https://img.shields.io/github/forks/Subrata0Ghosh/chativio?style=social)](https://github.com/Subrata0Ghosh/chativio)
 
