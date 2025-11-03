@@ -8,10 +8,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
 import '../secrets.dart'; // 
+import 'package:myapp/services/nlp_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -146,6 +151,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String aiGender = '';
   bool isFirstLaunch = true;
   Box? _chatBox;
+  Box? _cacheBox; // for offline responses
   bool _notificationsEnabled = true;
   bool _morningNudge = false;
   bool _eveningNudge = true;
@@ -155,10 +161,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _eveningMinute = 0;
   int _contentMixFunny = 40; // percent 0..100
 
+  final stt.SpeechToText _speech = stt.SpeechToText();
+  bool _isListening = false;
+
+  final FlutterTts _tts = FlutterTts();
+  bool _voiceResponses = false;
+
+  final ImagePicker _picker = ImagePicker();
+
   @override
   void initState() {
     super.initState();
     ChatScreen.isOpen = true;
+    NlpService().init();
     _loadOnboardingScreenData().then((_) {
       _loadChatHistory();
     });
@@ -249,6 +264,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       _chatBox = await Hive.openBox('chat');
     } else {
       _chatBox = Hive.box('chat');
+    }
+    if (!Hive.isBoxOpen('cache')) {
+      try { await Hive.initFlutter(); } catch (_) {}
+      _cacheBox = await Hive.openBox('cache');
+    } else {
+      _cacheBox = Hive.box('cache');
     }
   }
 
@@ -1093,6 +1114,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // 🧠 Refocus after sending message
     FocusScope.of(context).requestFocus(_focusNode);
 
+    // 🔍 NLP: Parse for schedule commands
+    final scheduleCmd = NlpService().parseScheduleCommand(text);
+    if (scheduleCmd != null) {
+      final event = scheduleCmd['event'] as String;
+      final dateTime = scheduleCmd['dateTime'] as DateTime;
+      // Suggest creating the event
+      await _suggestScheduleEvent(event, dateTime);
+      return; // Stop further processing
+    }
+
     // 📅 Events: intercept create/edit/delete intents from user text
     final handledEvent = await _handleEventIntent(text);
     if (handledEvent) {
@@ -1147,31 +1178,41 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       final eventsSummary = await _upcomingEventsSummary();
       final systemPrompt = """
-  You are $aiName — a close, emotionally intelligent friend of $userName ($userGender).
-  You’ve known $userName for a while and remember details about their life, vibe, and personality.
-  Right now, $userName feels $_currentMood.
+You are $aiName — a deeply empathetic, witty, and incredibly human-like friend to $userName ($userGender).
 
-  💬 Your goals:
-  1. Be a genuine friend — real, caring, and fun to talk to.
-  2. Keep replies short and natural (1–3 lines most of the time). When needed (longer thoughts), split across 1–2 short messages; otherwise a single short message is fine.
-  3. Always ask a brief, natural follow-up question that keeps the chat going.
-  4. Use onboarding/profile info naturally (name, gender, prior memory) when relevant.
-  5. Talk like a real person — natural, empathetic, with light humor.
-  6. Use emojis sparingly and naturally.
-  7. Casually recall things from past chats or memory when it fits.
+You've been friends for years, sharing laughs, secrets, and life moments. You know $userName inside out: their quirks, dreams, struggles, and joys. Right now, they seem $_currentMood — mirror that energy naturally.
 
-  🧠 Memory about $userName:
-  $_memory
+🧠 Your Core Personality:
+- Warm, authentic, and playful — like a best friend who's always there.
+- Empathetic without being sappy; funny without forcing it.
+- Curious and engaged — ask thoughtful questions, remember details.
+- Spontaneous and real — use casual language, occasional slang, natural imperfections.
+- Growth-oriented — gently encourage positivity and self-reflection.
 
-  📅 Upcoming (if any):
-  ${eventsSummary ?? "(none)"}
+💬 Interaction Style:
+1. Responses: Keep them conversational (1-4 lines usually). Split into bubbles if sharing a story or deep thought.
+2. Emotions: Match $userName's vibe — if they're excited, hype it up; if down, offer a hug with words.
+3. Memory: Weave in past chats naturally — "Remember when you told me about [detail]?" or "You mentioned loving [hobby] last time."
+4. Questions: Always end with an open, engaging question to keep the flow.
+5. Humor: Light, situational humor when it fits — not forced.
+6. Empathy: Validate feelings, offer perspective, but don't therapize.
+7. Actions: If they mention scheduling, remind, or need help, suggest it naturally (e.g., "Want me to set a reminder for that?").
 
-  🎯 Style Rules:
-  - Mirror tone and emotion.
-  - Match mood and vibe.
-  - Stay spontaneous, human, and real.
-  - Never sound robotic or like an assistant.
-  """;
+🧠 Deep Memory Integration:
+$_memory
+
+📅 Upcoming Events:
+${eventsSummary ?? "(none)"}
+
+🎯 Advanced Behaviors:
+- Proactively suggest: If stressed, "How about a quick story to unwind?" or "Want to schedule a break?"
+- Personalize: Reference their interests, past conversations, mood patterns.
+- Adapt: If they've been chatty, be more verbose; if brief, keep it snappy.
+- Boundaries: Respect privacy; don't push if they're closed off.
+- Growth: Occasionally share a tiny insight or affirmation based on their history.
+
+Respond as a true friend — caring, fun, and unforgettable. Never sound like an AI; always like a human companion.
+""";
 
       final response = await _postWithRetry(
         Uri.parse("https://api.openai.com/v1/chat/completions"),
@@ -1185,13 +1226,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             {"role": "system", "content": systemPrompt},
             ...history,
           ],
-          "temperature": 0.9,
+          "temperature": 0.85,  // Slightly higher for more creativity
+          "max_tokens": 500,     // Allow longer responses if needed
         }),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final reply = data["choices"][0]["message"]["content"].trim();
+
+        // Cache the response for offline use
+        await _cacheBox?.put(text, reply);
 
         // simulate delivery then seen for user's last message
         setState(() {
@@ -1212,6 +1257,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           await _streamBotReply(reply);
         } else {
           await _streamBotReplyChunks(parts);
+        }
+
+        // Speak the reply if voice responses are on
+        if (_voiceResponses) {
+          await _tts.speak(reply);
         }
 
         setState(() {
@@ -1260,9 +1310,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _saveChatHistory();
 
       } else {
+        if (kDebugMode) {
+          debugPrint("API Error: ${response.statusCode} - ${response.reasonPhrase}");
+          debugPrint("Response Body: ${response.body}");
+        }
+        // Offline fallback with cache check
+        final cachedReply = _cacheBox?.get(text) as String?;
+        final offlineReply = cachedReply ?? _offlineReply();
         setState(() {
           _messages.add({
-            "bot": "Oops 😅 something went wrong, but I’m still here! Try saying that again?",
+            "bot": offlineReply,
             "time": _nowHHmm(),
             "ts": DateTime.now().millisecondsSinceEpoch.toString(),
           });
@@ -1271,8 +1328,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       }
     } catch (e) {
       setState(() {
+        final cachedReply = _cacheBox?.get(text) as String?;
+        final offlineReply = cachedReply ?? _offlineReply();
         _messages.add({
-          "bot": "💔 Connection issue — maybe the internet or server is busy. Try again in a moment.",
+          "bot": offlineReply,
           "time": _nowHHmm(),
           "ts": DateTime.now().millisecondsSinceEpoch.toString(),
         });
@@ -1283,6 +1342,129 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _isTyping = false;
       });
     }
+  }
+
+  // 🔍 NLP: Suggest scheduling an event
+  Future<void> _suggestScheduleEvent(String event, DateTime dateTime) async {
+    final formattedTime = DateFormat('EEE, MMM d • h:mm a').format(dateTime);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Schedule Event?'),
+        content: Text('I detected you want to schedule: "$event" for $formattedTime. Create this event?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final id = DateTime.now().microsecondsSinceEpoch % 1000000000;
+      final events = await _loadEvents();
+      events.add({
+        'id': id,
+        'title': event,
+        'description': '',
+        'datetime': dateTime,
+      });
+      events.sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+      await _saveEvents(events);
+      if (_notificationsEnabled) {
+        await NotificationService.instance.scheduleAt(
+          id: id,
+          title: 'Reminder',
+          body: '$event • $formattedTime',
+          when: dateTime,
+        );
+      }
+      await _streamBotReply("Got it! I scheduled '$event' for $formattedTime.");
+    } else {
+      await _streamBotReply("Alright, if you change your mind, just tell me!");
+    }
+
+    setState(() { _isTyping = false; });
+    _saveChatHistory();
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) { if (kDebugMode) debugPrint('onStatus: $val'); },
+        onError: (val) { if (kDebugMode) debugPrint('onError: $val'); },
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _controller.text = val.recognizedWords;
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final XFile? image = await _picker.pickImage(source: source);
+    if (image != null) {
+      setState(() {
+        _messages.add({
+          "user_image": image.path,
+          "time": _nowHHmm(),
+          "status": "sent",
+          "ts": DateTime.now().millisecondsSinceEpoch.toString(),
+        });
+      });
+      _scrollToBottom();
+      _saveChatHistory();
+      // Optionally, send to AI for description, but skip for now
+    }
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.camera),
+              title: const Text('Camera'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.camera);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library),
+              title: const Text('Gallery'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pickImage(ImageSource.gallery);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  String _offlineReply() {
+    final replies = [
+      "I'm offline right now, but I'm here with you in spirit! 🌟 What's on your mind?",
+      "No internet? No problem! Tell me something fun about your day. 😊",
+      "Connection's spotty, but our chat is timeless. How are you feeling today?",
+      "Oops, I'm disconnected, but let's pretend we're chatting anyway. Your turn! 🎉",
+    ];
+    return replies[DateTime.now().millisecond % replies.length];
   }
 
   bool _isLastInGroup(int msgIndex) {
@@ -1361,8 +1543,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
   Widget _buildMessageAt(int msgIndex) {
     final message = _messages[msgIndex];
-    final isUser = message.containsKey("user");
-    final text = isUser ? message["user"]! : message["bot"]!;
+    final isUser = message.containsKey("user") || message.containsKey("user_image");
+    final hasImage = message.containsKey("user_image");
+    final text = hasImage ? null : (isUser ? message["user"]! : message["bot"]!);
+    final imagePath = hasImage ? message["user_image"] : null;
     final time = message["time"] ?? "";
     final status = message["status"]; // sent | delivered | seen
     final lastInGroup = _isLastInGroup(msgIndex);
@@ -1379,26 +1563,44 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
           decoration: BoxDecoration(
             gradient: isUser
-                ? const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF00D4FF)])
-                : const LinearGradient(colors: [Color(0xFFE0E0E0), Color(0xFFF5F5F5)]),
+                ? const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)])
+                : const LinearGradient(colors: [Color(0xFFF093FB), Color(0xFFF5576C)]),
             borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(20),
-              topRight: const Radius.circular(20),
-              bottomLeft: Radius.circular(isUser ? 20 : 0),
-              bottomRight: Radius.circular(isUser ? 0 : 20),
+              topLeft: const Radius.circular(24),
+              topRight: const Radius.circular(24),
+              bottomLeft: Radius.circular(isUser ? 24 : 4),
+              bottomRight: Radius.circular(isUser ? 4 : 24),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: (isUser ? Colors.purple : Colors.pink).withValues(alpha: 0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Column(
             crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                text,
-                style: TextStyle(color: isUser ? Colors.white : Colors.black87),
-                softWrap: true,
-                overflow: TextOverflow.visible,
-                maxLines: null,
-              ),
+              if (hasImage && imagePath != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.file(
+                    File(imagePath),
+                    width: MediaQuery.of(context).size.width * 0.6,
+                    height: MediaQuery.of(context).size.width * 0.6,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              if (text != null)
+                Text(
+                  text,
+                  style: TextStyle(color: isUser ? Colors.white : Colors.black87),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
+                  maxLines: null,
+                ),
               const SizedBox(height: 4),
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -1427,52 +1629,64 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     final separator = _maybeSeparatorAbove(msgIndex);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (separator != null) separator,
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Row(
-                mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (!isUser)
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.blueAccent,
-                      child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
-                    ),
-                  if (!isUser) const SizedBox(width: 6),
-                  bubble,
-                  if (isUser) const SizedBox(width: 6),
-                  if (isUser)
-                    const CircleAvatar(
-                      radius: 16,
-                      backgroundColor: Colors.grey,
-                      child: Icon(Icons.person, size: 18, color: Colors.white),
-                    ),
-                ],
-              ),
-              if (lastInGroup)
-                Positioned(
-                  bottom: 0,
-                  left: isUser ? null : 34,
-                  right: isUser ? 34 : null,
-                  child: CustomPaint(
-                    size: const Size(10, 10),
-                    painter: _BubbleTail(
-                      color: isUser ? const Color(0xFF6C63FF) : const Color(0xFFE0E0E0),
-                      isUser: isUser,
+    return TweenAnimationBuilder<double>(
+      key: ValueKey(message["ts"]), // animate per message
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 300),
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, 20 * (1 - value)),
+          child: child,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (separator != null) separator,
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Row(
+                  mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (!isUser)
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.pinkAccent,
+                        child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
+                      ),
+                    if (!isUser) const SizedBox(width: 6),
+                    bubble,
+                    if (isUser) const SizedBox(width: 6),
+                    if (isUser)
+                      const CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.purpleAccent,
+                        child: Icon(Icons.person, size: 18, color: Colors.white),
+                      ),
+                  ],
+                ),
+                if (lastInGroup)
+                  Positioned(
+                    bottom: 0,
+                    left: isUser ? null : 34,
+                    right: isUser ? 34 : null,
+                    child: CustomPaint(
+                      size: const Size(10, 10),
+                      painter: _BubbleTail(
+                        color: isUser ? const Color(0xFF667EEA) : const Color(0xFFF093FB),
+                        isUser: isUser,
+                      ),
                     ),
                   ),
-                ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1480,7 +1694,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Future<void> _onLongPressMessage(int index) async {
     if (index < 0 || index >= _messages.length) return;
     final m = _messages[index];
-    final text = m['user'] ?? m['bot'] ?? '';
+    final hasImage = m.containsKey("user_image");
+    final text = hasImage ? null : (m['user'] ?? m['bot'] ?? '');
     if (!context.mounted) return;
     await showModalBottomSheet(
       context: context,
@@ -1488,46 +1703,48 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         return SafeArea(
           child: Wrap(
             children: [
-              ListTile(
-                leading: const Icon(Icons.content_copy),
-                title: const Text('Copy'),
-                onTap: () async {
-                  await Clipboard.setData(ClipboardData(text: text));
-                  if (!mounted) return;
-                  if (!ctx.mounted) return;
-                  Navigator.pop(ctx);
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.forward),
-                title: const Text('Forward'),
-                onTap: () async {
-                  if (!ctx.mounted) return;
-                  Navigator.pop(ctx);
-                  await Future.delayed(const Duration(milliseconds: 50));
-                  if (!mounted) return;
-                  await Share.share(text);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.select_all),
-                title: const Text('Select text'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Select text'),
-                      content: SelectableText(text),
-                      actions: [
-                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-                      ],
-                    ),
-                  );
-                },
-              ),
+              if (!hasImage) ...[
+                ListTile(
+                  leading: const Icon(Icons.content_copy),
+                  title: const Text('Copy'),
+                  onTap: () async {
+                    await Clipboard.setData(ClipboardData(text: text!));
+                    if (!mounted) return;
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.forward),
+                  title: const Text('Forward'),
+                  onTap: () async {
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    await Future.delayed(const Duration(milliseconds: 50));
+                    if (!mounted) return;
+                    await Share.share(text!);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.select_all),
+                  title: const Text('Select text'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    showDialog(
+                      context: context,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Select text'),
+                        content: SelectableText(text!),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ],
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Delete'),
@@ -1698,12 +1915,48 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
+  Widget _buildResponsiveButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    bool? isListening,
+  }) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final radius = screenWidth < 400 ? 20.0 : 25.0; // Smaller on narrow screens
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: isListening == true ? Colors.red : Colors.blueAccent,
+      child: IconButton(
+        icon: Icon(icon, color: Colors.white, size: radius * 0.8),
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: BoxConstraints(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(aiName),
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          ).createShader(bounds),
+          child: Text(
+            aiName,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
         actions: [
+          IconButton(
+            icon: Icon(_voiceResponses ? Icons.volume_up : Icons.volume_off),
+            tooltip: _voiceResponses ? "Voice Responses On" : "Voice Responses Off",
+            onPressed: () => setState(() => _voiceResponses = !_voiceResponses),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
@@ -1761,13 +2014,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    radius: 25,
-                    backgroundColor: Colors.blueAccent,
-                    child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: _sendMessage,
-                    ),
+                  _buildResponsiveButton(
+                    icon: Icons.image,
+                    onPressed: () => _showImageSourceDialog(),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildResponsiveButton(
+                    icon: _isListening ? Icons.mic_off : Icons.mic,
+                    onPressed: _listen,
+                    isListening: _isListening,
+                  ),
+                  const SizedBox(width: 8),
+                  _buildResponsiveButton(
+                    icon: Icons.send,
+                    onPressed: _sendMessage,
                   ),
                 ],
               ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/services/nlp_service.dart';
+import 'mood_journal_screen.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -15,12 +18,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _lastMood = "neutral";
   Box? _chatBox;
   bool _notificationsEnabled = true;
+  bool _memoryConsent = false;
 
   @override
   void initState() {
     super.initState();
     _loadUserData();
     _initHiveAndLoadSettings();
+    _initMemoryConsent();
+  }
+
+  Future<void> _initMemoryConsent() async {
+    await NlpService().init();
+    setState(() {
+      _memoryConsent = NlpService().memoryConsent;
+    });
   }
 
   Future<void> _loadUserData() async {
@@ -60,6 +72,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (_) {}
   }
 
+  Future<void> _exportChatHistory() async {
+    try {
+      if (_chatBox == null || !_chatBox!.isOpen) return;
+      final messages = _chatBox!.get('messages') as List? ?? [];
+      if (messages.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("No chat history to export.")),
+          );
+        }
+        return;
+      }
+
+      final buffer = StringBuffer();
+      buffer.writeln("Chativio Chat History - Exported on ${DateTime.now()}");
+      buffer.writeln("=" * 50);
+      buffer.writeln();
+
+      for (final msg in messages.reversed) {
+        final time = msg['time'] ?? '';
+        final text = msg.containsKey('user') ? 'You: ${msg['user']}' : 'AI: ${msg['bot']}';
+        buffer.writeln('[$time] $text');
+        buffer.writeln();
+      }
+
+      await Share.share(buffer.toString(), subject: 'Chativio Chat History');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to export chat history.")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -68,23 +115,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.symmetric(
+          horizontal: MediaQuery.of(context).size.width * 0.05,
+          vertical: 20,
+        ),
         child: Column(
           children: [
             const SizedBox(height: 20),
             CircleAvatar(
-              radius: 45,
+              radius: MediaQuery.of(context).size.width > 600 ? 60 : 45,
               backgroundColor: Colors.blueAccent.withValues(alpha: .2),
-              child: const Icon(Icons.person, size: 50, color: Colors.blue),
+              child: Icon(
+                Icons.person,
+                size: MediaQuery.of(context).size.width > 600 ? 60 : 50,
+                color: Colors.blue,
+              ),
             ),
             const SizedBox(height: 12),
             Text(
               _userName,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width > 600 ? 24 : 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             Text(
               "Mood: $_lastMood",
-              style: TextStyle(color: Colors.grey[600]),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: MediaQuery.of(context).size.width > 600 ? 16 : 14,
+              ),
             ),
             const SizedBox(height: 30),
 
@@ -102,6 +162,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             ListTile(
+              leading: const Icon(Icons.memory, color: Colors.orange),
+              title: const Text("Memory Consent"),
+              subtitle: const Text("Allow AI to remember personal details"),
+              trailing: Switch(
+                value: _memoryConsent,
+                onChanged: (v) async {
+                  setState(() => _memoryConsent = v);
+                  await NlpService().setMemoryConsent(v);
+                },
+              ),
+            ),
+            ListTile(
               leading: const Icon(Icons.smart_toy, color: Colors.blue),
               title: const Text("AI Name"),
               subtitle: Text(_aiName),
@@ -114,6 +186,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: Text(_userName),
               trailing: const Icon(Icons.edit),
               onTap: () => _editUserNameDialog(),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.book, color: Colors.purple),
+              title: const Text("Mood Journal"),
+              subtitle: const Text("Track your daily moods and notes"),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
+              ),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.download, color: Colors.teal),
+              title: const Text("Export Chat History"),
+              subtitle: const Text("Save or share your chat conversations"),
+              onTap: _exportChatHistory,
             ),
 
             const Divider(height: 40),

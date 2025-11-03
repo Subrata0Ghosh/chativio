@@ -161,43 +161,80 @@ class _StoriesScreenState extends State<StoriesScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _currentStory!["title"]!,
-                    style: const TextStyle(
-                      fontSize: 22,
+                    style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width > 600 ? 24 : 22,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 12),
                   Text(
                     _currentStory!["content"]!,
-                    style: const TextStyle(fontSize: 16, height: 1.5),
+                    style: TextStyle(
+                      fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
+                      height: 1.5,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () => _loadRandomStoryForMood(_userMood),
-                        icon: const Icon(Icons.auto_stories),
-                        label: const Text("Tell Me Another"),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          final text =
-                              "${_currentStory!["title"]}\n\n${_currentStory!["content"]}";
-                          Share.share(text);
-                        },
-                        icon: const Icon(Icons.share),
-                        label: const Text('Share'),
-                      ),
-                      const Spacer(),
-                      Text(
-                        "Mood: ${_currentStory!["mood"]}",
-                        style: TextStyle(
-                          fontStyle: FontStyle.italic,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isSmall = constraints.maxWidth < 500;
+                      return isSmall
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _loadRandomStoryForMood(_userMood),
+                                  icon: const Icon(Icons.auto_stories),
+                                  label: const Text("Tell Me Another"),
+                                ),
+                                const SizedBox(height: 8),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    final text =
+                                        "${_currentStory!["title"]}\n\n${_currentStory!["content"]}";
+                                    Share.share(text);
+                                  },
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Share'),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Mood: ${_currentStory!["mood"]}",
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                ElevatedButton.icon(
+                                  onPressed: () => _loadRandomStoryForMood(_userMood),
+                                  icon: const Icon(Icons.auto_stories),
+                                  label: const Text("Tell Me Another"),
+                                ),
+                                const SizedBox(width: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    final text =
+                                        "${_currentStory!["title"]}\n\n${_currentStory!["content"]}";
+                                    Share.share(text);
+                                  },
+                                  icon: const Icon(Icons.share),
+                                  label: const Text('Share'),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  "Mood: ${_currentStory!["mood"]}",
+                                  style: TextStyle(
+                                    fontStyle: FontStyle.italic,
+                                    color: Colors.grey[700],
+                                  ),
+                                ),
+                              ],
+                            );
+                    },
                   ),
                 ],
               ),
