@@ -1304,9 +1304,11 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
           debugPrint("API Error: ${response.statusCode} - ${response.reasonPhrase}");
           debugPrint("Response Body: ${response.body}");
         }
+        // Offline fallback
+        final offlineReply = _offlineReply();
         setState(() {
           _messages.add({
-            "bot": "Oops 😅 something went wrong, but I’m still here! Try saying that again?",
+            "bot": offlineReply,
             "time": _nowHHmm(),
             "ts": DateTime.now().millisecondsSinceEpoch.toString(),
           });
@@ -1316,7 +1318,7 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
     } catch (e) {
       setState(() {
         _messages.add({
-          "bot": "💔 Connection issue — maybe the internet or server is busy. Try again in a moment.",
+          "bot": _offlineReply(),
           "time": _nowHHmm(),
           "ts": DateTime.now().millisecondsSinceEpoch.toString(),
         });
@@ -1441,6 +1443,14 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         ),
       ),
     );
+  String _offlineReply() {
+    final replies = [
+      "I'm offline right now, but I'm here with you in spirit! 🌟 What's on your mind?",
+      "No internet? No problem! Tell me something fun about your day. 😊",
+      "Connection's spotty, but our chat is timeless. How are you feeling today?",
+      "Oops, I'm disconnected, but let's pretend we're chatting anyway. Your turn! 🎉",
+    ];
+    return replies[DateTime.now().millisecond % replies.length];
   }
 
   bool _isLastInGroup(int msgIndex) {

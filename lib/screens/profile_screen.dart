@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/nlp_service.dart';
+import 'mood_journal_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -136,6 +137,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               subtitle: Text(_userName),
               trailing: const Icon(Icons.edit),
               onTap: () => _editUserNameDialog(),
+            ),
+
+            ListTile(
+              leading: const Icon(Icons.book, color: Colors.purple),
+              title: const Text("Mood Journal"),
+              subtitle: const Text("Track your daily moods and notes"),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
+              ),
             ),
 
             const Divider(height: 40),
