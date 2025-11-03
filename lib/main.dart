@@ -1,8 +1,14 @@
 
 import 'package:flutter/material.dart';
 import 'package:myapp/screens/flash_screen.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:myapp/services/notification_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox('chat');
+  await NotificationService.instance.init();
   runApp(const ChativioApp());
 }
 

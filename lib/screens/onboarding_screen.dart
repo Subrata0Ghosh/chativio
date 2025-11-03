@@ -62,83 +62,88 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Spacer(),
-                const Text(
-                  "Welcome to Chativio 👋",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                const Text("Let’s personalize your AI friend experience."),
-                const SizedBox(height: 30),
-
-                // User Name
-                TextFormField(
-                  controller: _userNameController,
-                  decoration: const InputDecoration(
-                    labelText: "Your Name",
-                    border: OutlineInputBorder(),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.only(top: 24, bottom: 24 + (bottomInset > 0 ? bottomInset : 0)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Welcome to Chativio 👋",
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
-                  validator: (value) =>
-                      value == null || value.trim().isEmpty ? "Please enter your name" : null,
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 10),
+                  const Text("Let’s personalize your AI friend experience."),
+                  const SizedBox(height: 30),
 
-                // User Gender
-                const Text("Your Gender"),
-                const SizedBox(height: 8),
-                _genderSelector("User Gender", _userGender, (val) {
-                  setState(() => _userGender = val);
-                }),
-                const SizedBox(height: 25),
-
-                // AI Name
-                TextFormField(
-                  controller: _aiNameController,
-                  decoration: const InputDecoration(
-                    labelText: "AI Friend Name",
-                    border: OutlineInputBorder(),
+                  // User Name
+                  TextFormField(
+                    controller: _userNameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: "Your Name",
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) =>
+                        value == null || value.trim().isEmpty ? "Please enter your name" : null,
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                // AI Gender
-                const Text("AI Gender"),
-                const SizedBox(height: 8),
-                _genderSelector("AI Gender", _aiGender, (val) {
-                  setState(() => _aiGender = val);
-                }),
+                  // User Gender
+                  const Text("Your Gender"),
+                  const SizedBox(height: 8),
+                  _genderSelector("User Gender", _userGender, (val) {
+                    setState(() => _userGender = val);
+                  }),
+                  const SizedBox(height: 25),
 
-                const Spacer(),
+                  // AI Name
+                  TextFormField(
+                    controller: _aiNameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: "AI Friend Name",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
-                // Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _saveAndContinue,
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFF6C63FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  // AI Gender
+                  const Text("AI Gender"),
+                  const SizedBox(height: 8),
+                  _genderSelector("AI Gender", _aiGender, (val) {
+                    setState(() => _aiGender = val);
+                  }),
+
+                  const SizedBox(height: 28),
+
+                  // Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: _saveAndContinue,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        backgroundColor: const Color(0xFF6C63FF),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        "Let's Start 🚀",
+                        style: TextStyle(fontSize: 18, color: Colors.white),
                       ),
                     ),
-                    child: const Text(
-                      "Let's Start 🚀",
-                      style: TextStyle(fontSize: 18, color: Colors.white),
-                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
-              ],
+                ],
+              ),
             ),
           ),
         ),
