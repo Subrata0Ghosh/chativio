@@ -1938,7 +1938,19 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(aiName),
+        title: ShaderMask(
+          shaderCallback: (bounds) => const LinearGradient(
+            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+          ).createShader(bounds),
+          child: Text(
+            aiName,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: Icon(_voiceResponses ? Icons.volume_up : Icons.volume_off),
