@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/nlp_service.dart';
 
 class ProfileScreen extends StatefulWidget {

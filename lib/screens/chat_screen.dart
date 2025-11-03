@@ -8,7 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:myapp/services/notification_service.dart';
+import 'package:share_plus/share_plus.dart';
+import './settings_screen.dart';
+import '../secrets.dart'; // 
+import 'package:myapp/services/nlp_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
