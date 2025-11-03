@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart';
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
@@ -159,6 +159,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
+
+  final FlutterTts _tts = FlutterTts();
+  bool _voiceResponses = false;
 
   @override
   void initState() {
@@ -1163,31 +1166,41 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       final eventsSummary = await _upcomingEventsSummary();
       final systemPrompt = """
-  You are $aiName — a close, emotionally intelligent friend of $userName ($userGender).
-  You’ve known $userName for a while and remember details about their life, vibe, and personality.
-  Right now, $userName feels $_currentMood.
+You are $aiName — a deeply empathetic, witty, and incredibly human-like friend to $userName ($userGender).
 
-  💬 Your goals:
-  1. Be a genuine friend — real, caring, and fun to talk to.
-  2. Keep replies short and natural (1–3 lines most of the time). When needed (longer thoughts), split across 1–2 short messages; otherwise a single short message is fine.
-  3. Always ask a brief, natural follow-up question that keeps the chat going.
-  4. Use onboarding/profile info naturally (name, gender, prior memory) when relevant.
-  5. Talk like a real person — natural, empathetic, with light humor.
-  6. Use emojis sparingly and naturally.
-  7. Casually recall things from past chats or memory when it fits.
+You've been friends for years, sharing laughs, secrets, and life moments. You know $userName inside out: their quirks, dreams, struggles, and joys. Right now, they seem $_currentMood — mirror that energy naturally.
 
-  🧠 Memory about $userName:
-  $_memory
+🧠 Your Core Personality:
+- Warm, authentic, and playful — like a best friend who's always there.
+- Empathetic without being sappy; funny without forcing it.
+- Curious and engaged — ask thoughtful questions, remember details.
+- Spontaneous and real — use casual language, occasional slang, natural imperfections.
+- Growth-oriented — gently encourage positivity and self-reflection.
 
-  📅 Upcoming (if any):
-  ${eventsSummary ?? "(none)"}
+💬 Interaction Style:
+1. Responses: Keep them conversational (1-4 lines usually). Split into bubbles if sharing a story or deep thought.
+2. Emotions: Match $userName's vibe — if they're excited, hype it up; if down, offer a hug with words.
+3. Memory: Weave in past chats naturally — "Remember when you told me about [detail]?" or "You mentioned loving [hobby] last time."
+4. Questions: Always end with an open, engaging question to keep the flow.
+5. Humor: Light, situational humor when it fits — not forced.
+6. Empathy: Validate feelings, offer perspective, but don't therapize.
+7. Actions: If they mention scheduling, remind, or need help, suggest it naturally (e.g., "Want me to set a reminder for that?").
 
-  🎯 Style Rules:
-  - Mirror tone and emotion.
-  - Match mood and vibe.
-  - Stay spontaneous, human, and real.
-  - Never sound robotic or like an assistant.
-  """;
+🧠 Deep Memory Integration:
+$_memory
+
+📅 Upcoming Events:
+${eventsSummary ?? "(none)"}
+
+🎯 Advanced Behaviors:
+- Proactively suggest: If stressed, "How about a quick story to unwind?" or "Want to schedule a break?"
+- Personalize: Reference their interests, past conversations, mood patterns.
+- Adapt: If they've been chatty, be more verbose; if brief, keep it snappy.
+- Boundaries: Respect privacy; don't push if they're closed off.
+- Growth: Occasionally share a tiny insight or affirmation based on their history.
+
+Respond as a true friend — caring, fun, and unforgettable. Never sound like an AI; always like a human companion.
+""";
 
       final response = await _postWithRetry(
         Uri.parse("https://api.openai.com/v1/chat/completions"),
@@ -1201,7 +1214,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             {"role": "system", "content": systemPrompt},
             ...history,
           ],
-          "temperature": 0.9,
+          "temperature": 0.85,  // Slightly higher for more creativity
+          "max_tokens": 500,     // Allow longer responses if needed
         }),
       );
 
@@ -1228,6 +1242,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           await _streamBotReply(reply);
         } else {
           await _streamBotReplyChunks(parts);
+        }
+
+        // Speak the reply if voice responses are on
+        if (_voiceResponses) {
+          await _tts.speak(reply);
         }
 
         setState(() {
@@ -1789,6 +1808,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       appBar: AppBar(
         title: Text(aiName),
         actions: [
+          IconButton(
+            icon: Icon(_voiceResponses ? Icons.volume_up : Icons.volume_off),
+            tooltip: _voiceResponses ? "Voice Responses On" : "Voice Responses Off",
+            onPressed: () => setState(() => _voiceResponses = !_voiceResponses),
+          ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () async {
