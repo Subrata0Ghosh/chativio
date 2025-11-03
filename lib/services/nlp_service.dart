@@ -66,12 +66,23 @@ class NlpService {
         date = now.add(const Duration(days: 1));
       } else {
         // Try parsing as date
-        date = DateFormat('yyyy-MM-dd').parse(dateStr) ?? DateTime.tryParse(dateStr) ?? now;
+        date = DateTime.tryParse(dateStr) ?? now;
       }
 
       if (timeStr != null) {
-        final time = DateFormat('HH:mm').parse(timeStr) ?? DateFormat('h:mm a').parse(timeStr);
-        date = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        DateTime? time;
+        try {
+          time = DateFormat('HH:mm').parse(timeStr);
+        } catch (_) {
+          try {
+            time = DateFormat('h:mm a').parse(timeStr);
+          } catch (_) {
+            time = null;
+          }
+        }
+        if (time != null) {
+          date = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+        }
       }
 
       return date.isAfter(now) ? date : null;
