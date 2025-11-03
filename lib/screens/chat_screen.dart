@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
@@ -156,7 +157,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   int _eveningMinute = 0;
   int _contentMixFunny = 40; // percent 0..100
 
-  stt.SpeechToText _speech = stt.SpeechToText();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
   @override
@@ -1352,8 +1353,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _listen() async {
     if (!_isListening) {
       bool available = await _speech.initialize(
-        onStatus: (val) => print('onStatus: $val'),
-        onError: (val) => print('onError: $val'),
+        onStatus: (val) { if (kDebugMode) debugPrint('onStatus: $val'); },
+        onError: (val) { if (kDebugMode) debugPrint('onError: $val'); },
       );
       if (available) {
         setState(() => _isListening = true);
