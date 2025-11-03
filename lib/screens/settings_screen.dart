@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+import 'package:myapp/providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -109,6 +111,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          SwitchListTile(
+            title: const Text('Dark Mode'),
+            subtitle: const Text('Switch between light and dark themes'),
+            value: context.watch<ThemeProvider>().isDarkMode,
+            onChanged: (v) => context.read<ThemeProvider>().toggleTheme(),
+          ),
+          const SizedBox(height: 8),
           Card(
             color: Colors.blueGrey.withValues(alpha:0.08),
             child: Padding(

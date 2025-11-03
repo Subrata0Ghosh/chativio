@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:myapp/screens/flash_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/notification_service.dart';
+import 'package:provider/provider.dart';
+import 'package:myapp/providers/theme_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,26 +19,18 @@ class ChativioApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Chativio',
-      debugShowCheckedModeBanner: false,
-
-      //light theme
-      theme: ThemeData(
-        brightness:Brightness.light,
-        primarySwatch: Colors.blue,
-
+    return ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Chativio',
+            debugShowCheckedModeBanner: false,
+            theme: themeProvider.theme,
+            home: const SplashScreen(),
+          );
+        },
       ),
-
-      //dark theme
-      darkTheme:ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch:Colors.blue,
-      ),
-
-      themeMode:ThemeMode.system,
-
-      home: const SplashScreen(),
     );
   }
 }
