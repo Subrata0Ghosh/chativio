@@ -1296,6 +1296,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         _saveChatHistory();
 
       } else {
+        if (kDebugMode) {
+          debugPrint("API Error: ${response.statusCode} - ${response.reasonPhrase}");
+          debugPrint("Response Body: ${response.body}");
+        }
         setState(() {
           _messages.add({
             "bot": "Oops 😅 something went wrong, but I’m still here! Try saying that again?",
