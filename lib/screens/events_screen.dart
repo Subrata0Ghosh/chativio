@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:myapp/services/notification_service.dart';
+import 'package:myapp/screens/mood_journal_screen.dart';
 
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
@@ -31,7 +32,9 @@ class _EventsScreenState extends State<EventsScreen> {
 
   Future<void> _initHive() async {
     if (!Hive.isBoxOpen('events')) {
-      try { await Hive.initFlutter(); } catch (_) {}
+      try {
+        await Hive.initFlutter();
+      } catch (_) {}
       eventsBox = await Hive.openBox('events');
     } else {
       eventsBox = Hive.box('events');
@@ -44,7 +47,9 @@ class _EventsScreenState extends State<EventsScreen> {
       if (Hive.isBoxOpen('chat')) {
         chatBox = Hive.box('chat');
       } else {
-        try { await Hive.initFlutter(); } catch (_) {}
+        try {
+          await Hive.initFlutter();
+        } catch (_) {}
         chatBox = await Hive.openBox('chat');
       }
       if (mounted) setState(() {});
@@ -53,30 +58,39 @@ class _EventsScreenState extends State<EventsScreen> {
 
   void _loadEvents() {
     final raw = (eventsBox?.get('list') as List?) ?? [];
-    events = raw.map<Map<String, dynamic>>((rawE) {
-      final e = Map<String, dynamic>.from(rawE as Map);
-      return <String, dynamic>{
-        'id': e['id'] as int,
-        'title': e['title'] as String,
-        'description': (e['description'] ?? '') as String,
-        'datetime': DateTime.fromMillisecondsSinceEpoch(e['ts'] as int),
-        'recurrence': (e['recurrence'] ?? 'none') as String, // none|daily|weekly|monthly
-        'offset': (e['offset'] ?? 0) as int, // minutes before
-      };
-    }).toList()
-      ..sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+    events =
+        raw.map<Map<String, dynamic>>((rawE) {
+          final e = Map<String, dynamic>.from(rawE as Map);
+          return <String, dynamic>{
+            'id': e['id'] as int,
+            'title': e['title'] as String,
+            'description': (e['description'] ?? '') as String,
+            'datetime': DateTime.fromMillisecondsSinceEpoch(e['ts'] as int),
+            'recurrence':
+                (e['recurrence'] ?? 'none')
+                    as String, // none|daily|weekly|monthly
+            'offset': (e['offset'] ?? 0) as int, // minutes before
+          };
+        }).toList()..sort(
+          (a, b) =>
+              (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime),
+        );
     setState(() {});
   }
 
   Future<void> _persistEvents() async {
-    final list = events.map((e) => {
-      'id': e['id'],
-      'title': e['title'],
-      'description': e['description'],
-      'ts': (e['datetime'] as DateTime).millisecondsSinceEpoch,
-      'recurrence': e['recurrence'] ?? 'none',
-      'offset': e['offset'] ?? 0,
-    }).toList();
+    final list = events
+        .map(
+          (e) => {
+            'id': e['id'],
+            'title': e['title'],
+            'description': e['description'],
+            'ts': (e['datetime'] as DateTime).millisecondsSinceEpoch,
+            'recurrence': e['recurrence'] ?? 'none',
+            'offset': e['offset'] ?? 0,
+          },
+        )
+        .toList();
     await eventsBox?.put('list', list);
   }
 
@@ -88,10 +102,13 @@ class _EventsScreenState extends State<EventsScreen> {
     List<Map<String, dynamic>> data = events;
     if (_query.isNotEmpty) {
       final q = _query.toLowerCase();
-      data = data.where((e) =>
-        (e['title'] as String).toLowerCase().contains(q) ||
-        (e['description'] as String).toLowerCase().contains(q)
-      ).toList();
+      data = data
+          .where(
+            (e) =>
+                (e['title'] as String).toLowerCase().contains(q) ||
+                (e['description'] as String).toLowerCase().contains(q),
+          )
+          .toList();
     }
     final upcoming = data.where((e) => e["datetime"].isAfter(now)).toList();
     final past = data.where((e) => e["datetime"].isBefore(now)).toList();
@@ -101,6 +118,14 @@ class _EventsScreenState extends State<EventsScreen> {
         title: const Text("Events & Reminders"),
         centerTitle: true,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.mood, color: Colors.amber),
+            tooltip: "Mood Journal",
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
+            ),
+          ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               switch (value) {
@@ -111,7 +136,8 @@ class _EventsScreenState extends State<EventsScreen> {
                   await NotificationService.instance.triggerTestInSeconds(5);
                   break;
                 case 'pending':
-                  final pending = await NotificationService.instance.listPending();
+                  final pending = await NotificationService.instance
+                      .listPending();
                   if (!context.mounted) return;
                   showDialog(
                     context: context,
@@ -124,15 +150,22 @@ class _EventsScreenState extends State<EventsScreen> {
                             shrinkWrap: true,
                             children: [
                               if (pending.isEmpty) const Text('None'),
-                              ...pending.map((p) => ListTile(
-                                    title: Text('ID: ${p.id}'),
-                                    subtitle: Text('${p.title ?? ''}\n${p.body ?? ''}'),
-                                  )),
+                              ...pending.map(
+                                (p) => ListTile(
+                                  title: Text('ID: ${p.id}'),
+                                  subtitle: Text(
+                                    '${p.title ?? ''}\n${p.body ?? ''}',
+                                  ),
+                                ),
+                              ),
                             ],
                           ),
                         ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Close'),
+                          ),
                         ],
                       );
                     },
@@ -180,7 +213,13 @@ class _EventsScreenState extends State<EventsScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            ...upcoming.map((e) => _buildEventCard(e, isUpcoming: true)),
+            if (upcoming.isEmpty)
+              _buildEmptyPlaceholder(
+                "No upcoming events",
+                Icons.event_available,
+              )
+            else
+              ...upcoming.map((e) => _buildEventCard(e, isUpcoming: true)),
 
             const SizedBox(height: 20),
             const Text(
@@ -188,7 +227,10 @@ class _EventsScreenState extends State<EventsScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            ...past.map((e) => _buildEventCard(e, isUpcoming: false)),
+            if (past.isEmpty)
+              _buildEmptyPlaceholder("No past events", Icons.event_busy)
+            else
+              ...past.map((e) => _buildEventCard(e, isUpcoming: false)),
           ],
         ),
       ),
@@ -200,7 +242,9 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Widget _buildEventCard(Map<String, dynamic> e, {bool isUpcoming = true}) {
-    final formattedTime = DateFormat('EEE, MMM d • hh:mm a').format(e["datetime"]);
+    final formattedTime = DateFormat(
+      'EEE, MMM d • hh:mm a',
+    ).format(e["datetime"]);
     return Dismissible(
       key: ValueKey(e['id']),
       direction: DismissDirection.endToStart,
@@ -216,11 +260,18 @@ class _EventsScreenState extends State<EventsScreen> {
               builder: (ctx) => AlertDialog(
                 title: const Text('Delete event?'),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                  ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Delete'),
+                  ),
                 ],
               ),
-            ) ?? false;
+            ) ??
+            false;
       },
       onDismissed: (_) async {
         final id = e['id'] as int;
@@ -247,6 +298,28 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
+  Widget _buildEmptyPlaceholder(String message, IconData icon) {
+    return Card(
+      elevation: 3,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          children: [
+            Icon(icon, size: 48, color: Colors.grey),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ➕ Add new event manually
   Future<void> _addEventDialog() async {
     String title = '';
@@ -265,93 +338,114 @@ class _EventsScreenState extends State<EventsScreen> {
         title: const Text("Add New Event"),
         content: StatefulBuilder(
           builder: (context, setInnerState) => SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-              TextField(
-                decoration: const InputDecoration(labelText: "Title"),
-                onChanged: (v) => title = v,
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: "Description"),
-                onChanged: (v) => desc = v,
-              ),
-              const SizedBox(height: 10),
-              TextButton.icon(
-                icon: const Icon(Icons.calendar_today),
-                label: Text(pickedDate == null
-                    ? "Pick Date & Time"
-                    : DateFormat('EEE, MMM d • hh:mm a').format(pickedDate!)),
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime(2100),
-                    initialDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    if (!context.mounted) return; 
-                    final time = await showTimePicker(
+                TextField(
+                  decoration: const InputDecoration(labelText: "Title"),
+                  onChanged: (v) => title = v,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: "Description"),
+                  onChanged: (v) => desc = v,
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  icon: const Icon(Icons.calendar_today),
+                  label: Text(
+                    pickedDate == null
+                        ? "Pick Date & Time"
+                        : DateFormat(
+                            'EEE, MMM d • hh:mm a',
+                          ).format(pickedDate!),
+                  ),
+                  onPressed: () async {
+                    final date = await showDatePicker(
                       context: context,
-                      initialTime: TimeOfDay.now(),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 1),
+                      ),
+                      lastDate: DateTime(2100),
+                      initialDate: DateTime.now(),
                     );
-                    if (time != null) {
-                      setInnerState(() {
-                        pickedDate = DateTime(
-                          date.year,
-                          date.month,
-                          date.day,
-                          time.hour,
-                          time.minute,
-                        );
-                      });
+                    if (date != null) {
+                      if (!context.mounted) return;
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (time != null) {
+                        setInnerState(() {
+                          pickedDate = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      }
                     }
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              // Recurrence
-              Row(
-                children: [
-                  const Text('Repeat: '),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: recurrence,
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('None')),
-                      DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                      DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                    ],
-                    onChanged: (v) => setInnerState(() => recurrence = v ?? 'none'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Offset
-              Row(
-                children: [
-                  const Text('Reminder offset (min): '),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Slider(
-                      value: offset.toDouble(),
-                      min: 0,
-                      max: 120,
-                      divisions: 24,
-                      label: '$offset',
-                      onChanged: (v) => setInnerState(() => offset = v.toInt()),
+                  },
+                ),
+                const SizedBox(height: 8),
+                // Recurrence
+                Row(
+                  children: [
+                    const Text('Repeat: '),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: recurrence,
+                      items: const [
+                        DropdownMenuItem(value: 'none', child: Text('None')),
+                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                        DropdownMenuItem(
+                          value: 'weekly',
+                          child: Text('Weekly'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'monthly',
+                          child: Text('Monthly'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setInnerState(() => recurrence = v ?? 'none'),
                     ),
-                  ),
-                  SizedBox(
-                    width: 56,
-                    child: Text('$offset', textAlign: TextAlign.center),
-                  )
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Offset
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Reminder offset (min):'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: offset.toDouble(),
+                            min: 0,
+                            max: 300,
+                            divisions: 30,
+                            label: '$offset',
+                            onChanged: (v) =>
+                                setInnerState(() => offset = v.toInt()),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 56,
+                          child: Text('$offset', textAlign: TextAlign.center),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -367,13 +461,20 @@ class _EventsScreenState extends State<EventsScreen> {
                 // Default date/time: next full hour, if not chosen
                 pickedDate ??= () {
                   final now = DateTime.now();
-                  final nextHour = DateTime(now.year, now.month, now.day, now.hour).add(const Duration(hours: 1));
+                  final nextHour = DateTime(
+                    now.year,
+                    now.month,
+                    now.day,
+                    now.hour,
+                  ).add(const Duration(hours: 1));
                   return nextHour;
                 }();
                 if (pickedDate != null) {
                   // Ensure storage is ready right before persist
                   if (eventsBox == null || !Hive.isBoxOpen('events')) {
-                    try { await Hive.initFlutter(); } catch (_) {}
+                    try {
+                      await Hive.initFlutter();
+                    } catch (_) {}
                     eventsBox = await Hive.openBox('events');
                   }
                   final id = DateTime.now().microsecondsSinceEpoch % 1000000000;
@@ -386,40 +487,68 @@ class _EventsScreenState extends State<EventsScreen> {
                     'offset': offset,
                   });
                   // keep list ordered
-                  events.sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+                  events.sort(
+                    (a, b) => (a['datetime'] as DateTime).compareTo(
+                      b['datetime'] as DateTime,
+                    ),
+                  );
                   setState(() {});
                   await _persistEvents();
                   added = true;
-                  final notifOn = (chatBox?.get('settings_notificationsEnabled', defaultValue: true) as bool?) ?? true;
+                  final notifOn =
+                      (chatBox?.get(
+                            'settings_notificationsEnabled',
+                            defaultValue: true,
+                          )
+                          as bool?) ??
+                      true;
                   if (notifOn) {
-                    final when = pickedDate!.subtract(Duration(minutes: offset));
+                    final when = pickedDate!.subtract(
+                      Duration(minutes: offset),
+                    );
                     if (when.isAfter(DateTime.now())) {
                       try {
-                        final scheduledId = await NotificationService.instance.scheduleAt(
-                          id: id,
-                          title: 'Reminder',
-                          body: '$title • ${desc.isEmpty ? DateFormat('EEE, MMM d • hh:mm a').format(pickedDate!) : desc}',
-                          when: when,
-                        );
+                        final scheduledId = await NotificationService.instance
+                            .scheduleAt(
+                              id: id,
+                              title: 'Reminder',
+                              body:
+                                  '$title • ${desc.isEmpty ? DateFormat('EEE, MMM d • hh:mm a').format(pickedDate!) : desc}',
+                              when: when,
+                            );
                         if (context.mounted && scheduledId != -1) {
-                          final localText = DateFormat('EEE, MMM d • hh:mm a').format(when.toLocal());
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text('Reminder scheduled for $localText (id: $scheduledId).'),
-                          ));
+                          final localText = DateFormat(
+                            'EEE, MMM d • hh:mm a',
+                          ).format(when.toLocal());
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Reminder scheduled for $localText (id: $scheduledId).',
+                              ),
+                            ),
+                          );
                         }
                       } catch (_) {}
                     } else {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Reminder time is in the past after offset; not scheduled.'),
-                        ));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Reminder time is in the past after offset; not scheduled.',
+                            ),
+                          ),
+                        );
                       }
                     }
                   } else {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Notifications are disabled in Settings; reminder not scheduled.'),
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Notifications are disabled in Settings; reminder not scheduled.',
+                          ),
+                        ),
+                      );
                     }
                   }
                 }
@@ -431,10 +560,12 @@ class _EventsScreenState extends State<EventsScreen> {
                 print(st);
                 if (context.mounted) {
                   final msg = e.toString();
-                  final trunc = msg.length > 120 ? '${msg.substring(0, 120)}…' : msg;
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Failed to add event: $trunc'),
-                  ));
+                  final trunc = msg.length > 120
+                      ? '${msg.substring(0, 120)}…'
+                      : msg;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to add event: $trunc')),
+                  );
                 }
               } finally {
                 if (added && context.mounted) {
@@ -462,85 +593,113 @@ class _EventsScreenState extends State<EventsScreen> {
         title: const Text("Edit Event"),
         content: StatefulBuilder(
           builder: (context, setInnerState) => SingleChildScrollView(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-              TextField(
-                decoration: const InputDecoration(labelText: "Title"),
-                controller: TextEditingController(text: title),
-                onChanged: (v) => title = v,
-              ),
-              TextField(
-                decoration: const InputDecoration(labelText: "Description"),
-                controller: TextEditingController(text: desc),
-                onChanged: (v) => desc = v,
-              ),
-              const SizedBox(height: 10),
-              TextButton.icon(
-                icon: const Icon(Icons.calendar_today),
-                label: Text(DateFormat('EEE, MMM d • hh:mm a').format(pickedDate)),
-                onPressed: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    firstDate: DateTime.now().subtract(const Duration(days: 1)),
-                    lastDate: DateTime(2100),
-                    initialDate: pickedDate,
-                  );
-                  if (date != null) {
-                    if (!context.mounted) return;
-                    final time = await showTimePicker(
+                TextField(
+                  decoration: const InputDecoration(labelText: "Title"),
+                  controller: TextEditingController(text: title),
+                  onChanged: (v) => title = v,
+                ),
+                TextField(
+                  decoration: const InputDecoration(labelText: "Description"),
+                  controller: TextEditingController(text: desc),
+                  onChanged: (v) => desc = v,
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  icon: const Icon(Icons.calendar_today),
+                  label: Text(
+                    DateFormat('EEE, MMM d • hh:mm a').format(pickedDate),
+                  ),
+                  onPressed: () async {
+                    final date = await showDatePicker(
                       context: context,
-                      initialTime: TimeOfDay(hour: pickedDate.hour, minute: pickedDate.minute),
+                      firstDate: DateTime.now().subtract(
+                        const Duration(days: 1),
+                      ),
+                      lastDate: DateTime(2100),
+                      initialDate: pickedDate,
                     );
-                    if (time != null) {
-                      setInnerState(() {
-                        pickedDate = DateTime(date.year, date.month, date.day, time.hour, time.minute);
-                      });
+                    if (date != null) {
+                      if (!context.mounted) return;
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay(
+                          hour: pickedDate.hour,
+                          minute: pickedDate.minute,
+                        ),
+                      );
+                      if (time != null) {
+                        setInnerState(() {
+                          pickedDate = DateTime(
+                            date.year,
+                            date.month,
+                            date.day,
+                            time.hour,
+                            time.minute,
+                          );
+                        });
+                      }
                     }
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Repeat: '),
-                  const SizedBox(width: 8),
-                  DropdownButton<String>(
-                    value: recurrence,
-                    items: const [
-                      DropdownMenuItem(value: 'none', child: Text('None')),
-                      DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                      DropdownMenuItem(value: 'weekly', child: Text('Weekly')),
-                      DropdownMenuItem(value: 'monthly', child: Text('Monthly')),
-                    ],
-                    onChanged: (v) => setInnerState(() => recurrence = v ?? 'none'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  const Text('Reminder offset (min): '),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Slider(
-                      value: offset.toDouble(),
-                      min: 0,
-                      max: 120,
-                      divisions: 24,
-                      label: '$offset',
-                      onChanged: (v) => setInnerState(() => offset = v.toInt()),
+                  },
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Text('Repeat: '),
+                    const SizedBox(width: 8),
+                    DropdownButton<String>(
+                      value: recurrence,
+                      items: const [
+                        DropdownMenuItem(value: 'none', child: Text('None')),
+                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
+                        DropdownMenuItem(
+                          value: 'weekly',
+                          child: Text('Weekly'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'monthly',
+                          child: Text('Monthly'),
+                        ),
+                      ],
+                      onChanged: (v) =>
+                          setInnerState(() => recurrence = v ?? 'none'),
                     ),
-                  ),
-                  SizedBox(
-                    width: 56,
-                    child: Text('$offset', textAlign: TextAlign.center),
-                  )
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Reminder offset (min):'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: offset.toDouble(),
+                            min: 0,
+                            max: 300,
+                            divisions: 30,
+                            label: '$offset',
+                            onChanged: (v) =>
+                                setInnerState(() => offset = v.toInt()),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 56,
+                          child: Text('$offset', textAlign: TextAlign.center),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -562,7 +721,13 @@ class _EventsScreenState extends State<EventsScreen> {
                 };
                 setState(() {});
                 await _persistEvents();
-                final notifOn = (chatBox?.get('settings_notificationsEnabled', defaultValue: true) as bool?) ?? true;
+                final notifOn =
+                    (chatBox?.get(
+                          'settings_notificationsEnabled',
+                          defaultValue: true,
+                        )
+                        as bool?) ??
+                    true;
                 try {
                   await NotificationService.instance.cancelById(e['id'] as int);
                 } catch (_) {}
@@ -570,31 +735,47 @@ class _EventsScreenState extends State<EventsScreen> {
                   final when = pickedDate.subtract(Duration(minutes: offset));
                   if (when.isAfter(DateTime.now())) {
                     try {
-                      final scheduledId = await NotificationService.instance.scheduleAt(
-                        id: e['id'] as int,
-                        title: 'Reminder',
-                        body: '$title • ${desc.isEmpty ? DateFormat('EEE, MMM d • hh:mm a').format(pickedDate) : desc}',
-                        when: when,
-                      );
+                      final scheduledId = await NotificationService.instance
+                          .scheduleAt(
+                            id: e['id'] as int,
+                            title: 'Reminder',
+                            body:
+                                '$title • ${desc.isEmpty ? DateFormat('EEE, MMM d • hh:mm a').format(pickedDate) : desc}',
+                            when: when,
+                          );
                       if (context.mounted && scheduledId != -1) {
-                        final localText = DateFormat('EEE, MMM d • hh:mm a').format(when.toLocal());
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Reminder scheduled for $localText (id: $scheduledId).'),
-                        ));
+                        final localText = DateFormat(
+                          'EEE, MMM d • hh:mm a',
+                        ).format(when.toLocal());
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Reminder scheduled for $localText (id: $scheduledId).',
+                            ),
+                          ),
+                        );
                       }
                     } catch (_) {}
                   } else {
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Reminder time is in the past after offset; not scheduled.'),
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Reminder time is in the past after offset; not scheduled.',
+                          ),
+                        ),
+                      );
                     }
                   }
                 } else {
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                      content: Text('Notifications are disabled in Settings; reminder not scheduled.'),
-                    ));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Notifications are disabled in Settings; reminder not scheduled.',
+                        ),
+                      ),
+                    );
                   }
                 }
                 if (!context.mounted) {

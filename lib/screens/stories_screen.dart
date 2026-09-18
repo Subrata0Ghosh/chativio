@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_tts/flutter_tts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
-import 'dart:math';
+
+import '../services/ai_service.dart';
 
 class StoriesScreen extends StatefulWidget {
   const StoriesScreen({super.key});
@@ -10,107 +13,169 @@ class StoriesScreen extends StatefulWidget {
   State<StoriesScreen> createState() => _StoriesScreenState();
 }
 
-class _StoriesScreenState extends State<StoriesScreen> {
-  String _userMood = "neutral"; // default mood
-  Map<String, String>? _currentStory;
+class _StoriesScreenState extends State<StoriesScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  final FlutterTts _tts = FlutterTts();
 
-  // 🧠 Story dataset categorized by mood
-  final Map<String, List<Map<String, String>>> _moodStories = {
-    "happy": [
-      {
-        "title": "The Ripple of a Smile",
-        "content":
-            "Ananya smiled at the chai seller every morning. One day, he said that her smile made his day brighter. Happiness travels quietly — even small acts can light up many hearts.",
-        "mood": "Joyful"
-      },
-      {
-        "title": "A Pocketful of Sunshine",
-        "content":
-            "Every time Mehul felt happy, he’d write down the reason on a small note and keep it in a jar. Later, during tough times, he’d open one at random — his own sunshine in a bottle.",
-        "mood": "Grateful"
-      },
-    ],
-    "sad": [
-      {
-        "title": "The Rainbow After Rain",
-        "content":
-            "Tanya felt lost after losing her job, but those quiet days helped her rediscover painting — her childhood passion. Sometimes endings are just disguised beginnings.",
-        "mood": "Uplifting"
-      },
-      {
-        "title": "The Broken Cup",
-        "content":
-            "A child broke his favorite cup and cried. His mother glued it together, cracks visible but strong. ‘See,’ she said, ‘even broken things can hold love.’ So can we.",
-        "mood": "Healing"
-      },
-    ],
-    "angry": [
-      {
-        "title": "The Calm River",
-        "content":
-            "A river never fights the rocks — it flows around them. When you stop resisting, peace flows back into you. Anger burns fast, but calm endures.",
-        "mood": "Peaceful"
-      },
-      {
-        "title": "The Pause Button",
-        "content":
-            "Before reacting, take one breath — it’s your pause button. It can save your words, your peace, and sometimes even a friendship.",
-        "mood": "Mindful"
-      },
-    ],
-    "stressed": [
-      {
-        "title": "The Empty Bench",
-        "content":
-            "Ravi used to rush all day until one morning, he sat on a park bench doing nothing — and found everything. Sometimes rest is progress.",
-        "mood": "Relaxing"
-      },
-      {
-        "title": "The Candle’s Lesson",
-        "content":
-            "A candle doesn’t light up by burning faster. It shines by burning steadily. Slow down — you’re still glowing.",
-        "mood": "Soothing"
-      },
-    ],
-    "neutral": [
-      {
-        "title": "The Path Ahead",
-        "content":
-            "Some days are just steady — neither up nor down. That’s life recharging quietly before your next adventure.",
-        "mood": "Balanced"
-      },
-      {
-        "title": "The Wanderer",
-        "content":
-            "Rohan had no plans one weekend, so he wandered aimlessly and found a new café, a new friend, and a new song. Magic often hides in the ordinary.",
-        "mood": "Calm"
-      },
-    ],
-  };
+  String _userMood = "neutral";
+  String _selectedGenre = "Inspirational";
+  final TextEditingController _customTopicController = TextEditingController();
+
+  Map<String, String>? _currentStory;
+  bool _isGenerating = false;
+  bool _isPlayingAudio = false;
+
+  Box? _storiesBox;
+  List<Map<String, String>> _favoriteStories = [];
+
+  final List<String> _genres = [
+    "Inspirational",
+    "Bedtime",
+    "Adventure",
+    "Sci-Fi",
+    "Mystery",
+    "Humor",
+  ];
 
   @override
   void initState() {
     super.initState();
-    _loadMoodAndStory();
+    _tabController = TabController(length: 2, vsync: this);
+    _initTts();
+    _initHive();
+    _loadMoodAndInitialStory();
   }
 
-  Future<void> _loadMoodAndStory() async {
+  Future<void> _initTts() async {
+    await _tts.setLanguage("en-US");
+    await _tts.setSpeechRate(0.48);
+    await _tts.setPitch(1.0);
+    _tts.setCompletionHandler(() {
+      if (mounted) setState(() => _isPlayingAudio = false);
+    });
+  }
+
+  Future<void> _initHive() async {
+    if (!Hive.isBoxOpen('saved_stories')) {
+      try {
+        await Hive.initFlutter();
+      } catch (_) {}
+      _storiesBox = await Hive.openBox('saved_stories');
+    } else {
+      _storiesBox = Hive.box('saved_stories');
+    }
+    _loadFavoriteStories();
+  }
+
+  void _loadFavoriteStories() {
+    final raw = (_storiesBox?.get('favorites') as List?) ?? [];
+    setState(() {
+      _favoriteStories = raw
+          .map((e) => Map<String, String>.from(e as Map))
+          .toList();
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    if (_currentStory == null || _storiesBox == null) return;
+    final title = _currentStory!['title'] ?? '';
+
+    final existingIndex = _favoriteStories.indexWhere(
+      (s) => s['title'] == title,
+    );
+    if (existingIndex >= 0) {
+      _favoriteStories.removeAt(existingIndex);
+    } else {
+      _favoriteStories.insert(0, _currentStory!);
+    }
+
+    await _storiesBox!.put('favorites', _favoriteStories);
+    setState(() {});
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            existingIndex >= 0
+                ? "Removed from saved stories."
+                : "Saved to your story library! ⭐",
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  bool get _isCurrentStoryFavorite {
+    if (_currentStory == null) return false;
+    final title = _currentStory!['title'] ?? '';
+    return _favoriteStories.any((s) => s['title'] == title);
+  }
+
+  Future<void> _loadMoodAndInitialStory() async {
     final prefs = await SharedPreferences.getInstance();
     final savedMood = prefs.getString("last_mood") ?? "neutral";
-
     setState(() {
       _userMood = savedMood;
     });
 
-    _loadRandomStoryForMood(savedMood);
+    // Provide default starter story
+    _currentStory = {
+      "title": "The Whispering Breeze",
+      "content":
+          "On an ordinary afternoon, Sophie sat near the open window, letting the cool evening air brush past her face. For weeks, she had been running from task to task, feeling like life was a race she couldn't win. But in that quiet minute, listening to the gentle rustle of the trees, she realized: the world was not rushing her. Only her thoughts were.\n\nShe closed her eyes, took a long slow breath, and felt a quiet, grounding peace return to her chest.",
+      "mood": "Calm",
+      "moral":
+          "Peace is not the absence of work; it is the presence of stillness inside.",
+      "genre": "Inspirational",
+    };
+    setState(() {});
   }
 
-  void _loadRandomStoryForMood(String mood) {
-    final stories = _moodStories[mood] ?? _moodStories["neutral"]!;
-    final random = Random();
+  Future<void> _generateNewStory() async {
+    // If not Pro and already used 3 story generations, prompt pro
     setState(() {
-      _currentStory = stories[random.nextInt(stories.length)];
+      _isGenerating = true;
+      _stopAudio();
     });
+
+    final story = await AiService.instance.generateStory(
+      genre: _selectedGenre,
+      mood: _userMood,
+      customTopic: _customTopicController.text.trim(),
+    );
+
+    if (mounted) {
+      setState(() {
+        _currentStory = story;
+        _isGenerating = false;
+      });
+    }
+  }
+
+  Future<void> _toggleAudio() async {
+    if (_isPlayingAudio) {
+      await _stopAudio();
+    } else if (_currentStory != null) {
+      setState(() => _isPlayingAudio = true);
+      final textToRead =
+          "${_currentStory!['title']}.\n\n${_currentStory!['content']}\n\nKey Takeaway: ${_currentStory!['moral']}";
+      await _tts.speak(textToRead);
+    }
+  }
+
+  Future<void> _stopAudio() async {
+    await _tts.stop();
+    if (mounted) setState(() => _isPlayingAudio = false);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    _customTopicController.dispose();
+    _tts.stop();
+    super.dispose();
   }
 
   @override
@@ -119,126 +184,318 @@ class _StoriesScreenState extends State<StoriesScreen> {
       appBar: AppBar(
         title: const Text("Stories & Insights"),
         centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: "New Story",
-            onPressed: () => _loadRandomStoryForMood(_userMood),
-          )
-        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.auto_stories), text: "AI Story Studio"),
+            Tab(icon: Icon(Icons.bookmark), text: "Saved Library"),
+          ],
+        ),
       ),
-      body: _currentStory == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () async {
-                _loadRandomStoryForMood(_userMood);
-                await Future.delayed(const Duration(milliseconds: 300));
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Mood selector chips
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      for (final mood in const [
-                        'happy', 'sad', 'angry', 'stressed', 'neutral'
-                      ])
-                        ChoiceChip(
-                          label: Text(mood),
-                          selected: _userMood == mood,
-                          onSelected: (sel) async {
-                            if (!sel) return;
-                            final prefs = await SharedPreferences.getInstance();
-                            await prefs.setString('last_mood', mood);
-                            setState(() => _userMood = mood);
-                            _loadRandomStoryForMood(mood);
-                          },
-                        ),
-                    ],
+      body: TabBarView(
+        controller: _tabController,
+        children: [_buildStoryStudioTab(), _buildSavedLibraryTab()],
+      ),
+    );
+  }
+
+  Widget _buildStoryStudioTab() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        // Genre Chips
+        const Text(
+          "Choose Genre",
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _genres.map((genre) {
+              final isSel = _selectedGenre == genre;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: Text(genre),
+                  selected: isSel,
+                  selectedColor: const Color(0xFF667EEA),
+                  labelStyle: TextStyle(
+                    color: isSel ? Colors.white : null,
+                    fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    _currentStory!["title"]!,
-                    style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width > 600 ? 24 : 22,
-                      fontWeight: FontWeight.bold,
+                  onSelected: (val) {
+                    if (val) setState(() => _selectedGenre = genre);
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Custom Topic Input (optional)
+        TextField(
+          controller: _customTopicController,
+          decoration: InputDecoration(
+            hintText: "Optional topic (e.g. overcoming fear, cozy rainy night)",
+            prefixIcon: const Icon(Icons.edit_note),
+            suffixIcon: _customTopicController.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () =>
+                        setState(() => _customTopicController.clear()),
+                  )
+                : null,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+
+        // Generate Button
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: _isGenerating ? null : _generateNewStory,
+            icon: _isGenerating
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
                     ),
+                  )
+                : const Icon(Icons.auto_awesome),
+            label: Text(
+              _isGenerating ? "Writing Your Story..." : "Generate AI Story ✨",
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667EEA),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Story Display Card
+        if (_currentStory != null) ...[
+          Card(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFF667EEA,
+                          ).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          "${_currentStory!['genre']} • ${_currentStory!['mood']}",
+                          style: const TextStyle(
+                            color: Color(0xFF667EEA),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _isPlayingAudio
+                                  ? Icons.stop_circle
+                                  : Icons.volume_up,
+                              color: _isPlayingAudio
+                                  ? Colors.redAccent
+                                  : const Color(0xFF667EEA),
+                            ),
+                            tooltip: _isPlayingAudio
+                                ? "Stop Audio"
+                                : "Listen to Story",
+                            onPressed: _toggleAudio,
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              _isCurrentStoryFavorite
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: _isCurrentStoryFavorite
+                                  ? Colors.amber
+                                  : Colors.grey,
+                            ),
+                            tooltip: "Save to Library",
+                            onPressed: _toggleFavorite,
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.share_outlined),
+                            tooltip: "Share Story",
+                            onPressed: () {
+                              final text =
+                                  "${_currentStory!['title']}\n\n${_currentStory!['content']}\n\nTakeaway: ${_currentStory!['moral']}";
+                              Share.share(text);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    _currentStory!["content"]!,
-                    style: TextStyle(
-                      fontSize: MediaQuery.of(context).size.width > 600 ? 18 : 16,
-                      height: 1.5,
+                    _currentStory!["title"] ?? "Story",
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isSmall = constraints.maxWidth < 500;
-                      return isSmall
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: () => _loadRandomStoryForMood(_userMood),
-                                  icon: const Icon(Icons.auto_stories),
-                                  label: const Text("Tell Me Another"),
-                                ),
-                                const SizedBox(height: 8),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    final text =
-                                        "${_currentStory!["title"]}\n\n${_currentStory!["content"]}";
-                                    Share.share(text);
-                                  },
-                                  icon: const Icon(Icons.share),
-                                  label: const Text('Share'),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  "Mood: ${_currentStory!["mood"]}",
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                ElevatedButton.icon(
-                                  onPressed: () => _loadRandomStoryForMood(_userMood),
-                                  icon: const Icon(Icons.auto_stories),
-                                  label: const Text("Tell Me Another"),
-                                ),
-                                const SizedBox(width: 12),
-                                OutlinedButton.icon(
-                                  onPressed: () {
-                                    final text =
-                                        "${_currentStory!["title"]}\n\n${_currentStory!["content"]}";
-                                    Share.share(text);
-                                  },
-                                  icon: const Icon(Icons.share),
-                                  label: const Text('Share'),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  "Mood: ${_currentStory!["mood"]}",
-                                  style: TextStyle(
-                                    fontStyle: FontStyle.italic,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            );
-                    },
+                  const SizedBox(height: 14),
+                  Text(
+                    _currentStory!["content"] ?? "",
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      letterSpacing: 0.2,
+                    ),
                   ),
+                  if (_currentStory!["moral"] != null &&
+                      _currentStory!["moral"]!.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.lightbulb_outline,
+                            color: Colors.amber,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _currentStory!["moral"]!,
+                              style: const TextStyle(
+                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
+          ),
+        ],
+        const SizedBox(height: 30),
+      ],
+    );
+  }
+
+  Widget _buildSavedLibraryTab() {
+    if (_favoriteStories.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.bookmark_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 12),
+            const Text(
+              "No saved stories yet",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Tap the star icon on any generated story to save it here.",
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _favoriteStories.length,
+      itemBuilder: (context, index) {
+        final story = _favoriteStories[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
+            title: Text(
+              story['title'] ?? 'Story',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              story['content'] ?? '',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.volume_up, color: Color(0xFF667EEA)),
+                  onPressed: () {
+                    _tts.speak("${story['title']}.\n\n${story['content']}");
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    color: Colors.redAccent,
+                  ),
+                  onPressed: () async {
+                    setState(() {
+                      _favoriteStories.removeAt(index);
+                    });
+                    await _storiesBox?.put('favorites', _favoriteStories);
+                  },
+                ),
+              ],
+            ),
+            onTap: () {
+              setState(() {
+                _currentStory = story;
+                _tabController.animateTo(0);
+              });
+            },
+          ),
+        );
+      },
     );
   }
 }

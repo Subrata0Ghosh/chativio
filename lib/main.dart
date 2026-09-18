@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:myapp/screens/flash_screen.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -26,7 +25,9 @@ class ChativioApp extends StatelessWidget {
           return MaterialApp(
             title: 'Chativio',
             debugShowCheckedModeBanner: false,
-            theme: themeProvider.theme,
+            theme: themeProvider.lightTheme,
+            darkTheme: themeProvider.darkTheme,
+            themeMode: themeProvider.themeMode,
             home: const SplashScreen(),
           );
         },
@@ -34,4 +35,3 @@ class ChativioApp extends StatelessWidget {
     );
   }
 }
-

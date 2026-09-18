@@ -7,15 +7,19 @@ class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
 
-  final FlutterLocalNotificationsPlugin _plugin = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _plugin =
+      FlutterLocalNotificationsPlugin();
   bool _initialized = false;
   bool _tzInitialized = false;
 
   Future<void> init() async {
     if (_initialized) return;
 
-    const AndroidInitializationSettings androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const InitializationSettings initSettings = InitializationSettings(android: androidInit);
+    const AndroidInitializationSettings androidInit =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings = InitializationSettings(
+      android: androidInit,
+    );
     await _plugin.initialize(initSettings);
 
     // Ensure timezone database is ready as early as possible
@@ -23,10 +27,19 @@ class NotificationService {
 
     // On Android 13+, POST_NOTIFICATIONS permission is runtime; plugin handles it via requestPermission
     try {
-      await _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-    } catch (_) {}
+      final androidImplementation = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      if (androidImplementation != null) {
+        await androidImplementation.requestNotificationsPermission();
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint("Notification permission error: $e");
+    }
 
     _initialized = true;
+    if (kDebugMode) debugPrint("NotificationService initialized");
   }
 
   Future<void> _ensureTz() async {
@@ -39,7 +52,10 @@ class NotificationService {
 
   Future<bool> _ensurePermissionsForScheduling() async {
     try {
-      final androidImpl = _plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final androidImpl = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
       if (androidImpl != null) {
         final enabled = await androidImpl.areNotificationsEnabled();
         if (enabled == false) {
@@ -47,7 +63,9 @@ class NotificationService {
         }
         await androidImpl.requestExactAlarmsPermission();
       }
-    } catch (_) {}
+    } catch (e) {
+      if (kDebugMode) debugPrint("Permission request error: $e");
+    }
     return true;
   }
 
@@ -64,15 +82,23 @@ class NotificationService {
 
   Future<void> show(String title, String body) async {
     if (!_initialized) return;
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'chat_messages',
-      'Chat Messages',
-      channelDescription: 'Notifications for AI chat messages',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'chat_messages',
+          'Chat Messages',
+          channelDescription: 'Notifications for AI chat messages',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        );
+    const NotificationDetails details = NotificationDetails(
+      android: androidDetails,
     );
-    const NotificationDetails details = NotificationDetails(android: androidDetails);
-    await _plugin.show(DateTime.now().millisecondsSinceEpoch % 1000000, title, body, details);
+    await _plugin.show(
+      DateTime.now().millisecondsSinceEpoch % 1000000,
+      title,
+      body,
+      details,
+    );
   }
 
   Future<void> triggerTestNow() async {
@@ -87,15 +113,16 @@ class NotificationService {
     if (!_initialized) return;
     await _ensurePermissionsForScheduling();
     await _ensureTz();
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'event_reminders_high',
-      'Event Reminders',
-      channelDescription: 'Reminders for your saved events',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'event_reminders_high',
+          'Event Reminders',
+          channelDescription: 'Reminders for your saved events',
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+        );
     final details = const NotificationDetails(android: androidDetails);
     final now = tz.TZDateTime.now(tz.local);
     final scheduled = now.add(Duration(seconds: seconds));
@@ -115,20 +142,34 @@ class NotificationService {
     }
   }
 
-  Future<void> scheduleDailyNudge(String title, String body, {int hour = 19, int minute = 0, int id = 9001}) async {
+  Future<void> scheduleDailyNudge(
+    String title,
+    String body, {
+    int hour = 19,
+    int minute = 0,
+    int id = 9001,
+  }) async {
     if (!_initialized) return;
     await _ensurePermissionsForScheduling();
     await _ensureTz();
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'daily_nudges',
-      'Daily Nudges',
-      channelDescription: 'Daily friendly nudges from AI',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-    );
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'daily_nudges',
+          'Daily Nudges',
+          channelDescription: 'Daily friendly nudges from AI',
+          importance: Importance.defaultImportance,
+          priority: Priority.defaultPriority,
+        );
     final details = const NotificationDetails(android: androidDetails);
     final now = tz.TZDateTime.now(tz.local);
-    var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    var scheduled = tz.TZDateTime(
+      tz.local,
+      now.year,
+      now.month,
+      now.day,
+      hour,
+      minute,
+    );
     if (scheduled.isBefore(now)) {
       scheduled = scheduled.add(const Duration(days: 1));
     }
@@ -170,15 +211,16 @@ class NotificationService {
     if (!_initialized) return -1;
     await _ensurePermissionsForScheduling();
     await _ensureTz();
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
-      'event_reminders_high',
-      'Event Reminders',
-      channelDescription: 'Reminders for your saved events',
-      importance: Importance.high,
-      priority: Priority.high,
-      playSound: true,
-      enableVibration: true,
-    );
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'event_reminders_high',
+          'Event Reminders',
+          channelDescription: 'Reminders for your saved events',
+          importance: Importance.high,
+          priority: Priority.high,
+          playSound: true,
+          enableVibration: true,
+        );
     final details = const NotificationDetails(android: androidDetails);
     var scheduled = _toScheduledTime(when);
     final nowTz = tz.TZDateTime.now(scheduled.location);
@@ -187,9 +229,13 @@ class NotificationService {
       scheduled = nowTz.add(const Duration(seconds: 2));
     }
     final localNow = DateTime.now();
-    final localScheduled = DateTime.fromMillisecondsSinceEpoch(scheduled.millisecondsSinceEpoch).toLocal();
+    final localScheduled = DateTime.fromMillisecondsSinceEpoch(
+      scheduled.millisecondsSinceEpoch,
+    ).toLocal();
     if (kDebugMode) {
-      debugPrint('Scheduling event notification id=$id at $scheduled tz=\'${scheduled.location.name}\' (local: $localScheduled, now: $localNow)');
+      debugPrint(
+        'Scheduling event notification id=$id at $scheduled tz=\'${scheduled.location.name}\' (local: $localScheduled, now: $localNow)',
+      );
     }
     try {
       await _plugin.zonedSchedule(
@@ -213,4 +259,3 @@ class NotificationService {
     await _plugin.cancel(id);
   }
 }
-

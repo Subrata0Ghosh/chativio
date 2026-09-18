@@ -9,15 +9,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:myapp/main.dart';
 import 'package:myapp/screens/flash_screen.dart';
+import 'package:myapp/screens/onboarding_screen.dart'; // Import this
+import 'package:shared_preferences/shared_preferences.dart'; // Import this
 
 void main() {
   testWidgets('App starts with SplashScreen', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const ChativioApp());
+    // Mock SharedPreferences
+    SharedPreferences.setMockInitialValues({});
+
+    // Build SplashScreen directly (avoid main.dart Hive init issues)
+    await tester.pumpWidget(const MaterialApp(home: SplashScreen()));
 
     // Verify that SplashScreen is present.
     expect(find.byType(SplashScreen), findsOneWidget);
+
+    // Drain the timer (4 seconds)
+    await tester.pump(const Duration(seconds: 4));
+    // Handle navigation frame
+    await tester.pump();
+
+    // SplashScreen should ideally navigate away,
+    // expecting OnboardingScreen (since isFirstLaunch default is true in mock empty prefs?
+    // actually prefs.getBool returns null, ?? true. So yes.)
+    expect(find.byType(OnboardingScreen), findsOneWidget);
   });
 }

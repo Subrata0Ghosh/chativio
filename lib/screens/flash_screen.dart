@@ -5,8 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/onboarding_screen.dart';
 
-
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -25,13 +23,15 @@ class _SplashScreenState extends State<SplashScreen>
     super.initState();
 
     // Animation for pulse effect
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 3))
-          ..repeat(reverse: true);
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
 
-    _animation = Tween<double>(begin: 0.9, end: 1.2).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+    _animation = Tween<double>(
+      begin: 0.9,
+      end: 1.2,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
     // Text fade-in animation
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -42,8 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // Navigate to home after 4s
-    Timer(const Duration(seconds: 4), ()async {
-
+    Timer(const Duration(seconds: 4), () async {
       final prefs = await SharedPreferences.getInstance();
       final isFirstLaunch = prefs.getBool("isFirstLaunch") ?? true;
 
@@ -60,7 +59,6 @@ class _SplashScreenState extends State<SplashScreen>
           MaterialPageRoute(builder: (context) => const MainWrapper()),
         );
       }
-
     });
   }
 
@@ -76,7 +74,12 @@ class _SplashScreenState extends State<SplashScreen>
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF667EEA), Color(0xFF764BA2), Color(0xFFF093FB), Color(0xFFF5576C)],
+            colors: [
+              Color(0xFF667EEA),
+              Color(0xFF764BA2),
+              Color(0xFFF093FB),
+              Color(0xFFF5576C),
+            ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -100,7 +103,7 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withValues(alpha:0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         blurRadius: 40,
                         spreadRadius: 15,
                       ),
@@ -154,16 +157,19 @@ class _SplashScreenState extends State<SplashScreen>
                   builder: (context, value, _) => ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: ShaderMask(
-                      shaderCallback: (bounds) => const LinearGradient(
-                        colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
-                      ).createShader(
-                          Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+                      shaderCallback: (bounds) =>
+                          const LinearGradient(
+                            colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
+                          ).createShader(
+                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                          ),
                       child: LinearProgressIndicator(
                         value: value,
                         backgroundColor:
                             Colors.transparent, // important for gradient
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                          Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -176,5 +182,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-
-

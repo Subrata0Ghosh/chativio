@@ -1,4 +1,3 @@
-import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 class NlpService {
@@ -19,73 +18,153 @@ class NlpService {
     }
   }
 
-  /// Parse a message for scheduling commands like "schedule dentist next Tuesday at 10am"
-  Map<String, dynamic>? parseScheduleCommand(String message) {
-    final RegExp regExp = RegExp(
-      r'schedule\s+(.+?)\s+(?:on\s+|at\s+)?(.+?)(?:\s+at\s+(.+))?$',
-      caseSensitive: false,
-    );
-    final match = regExp.firstMatch(message.toLowerCase());
-    if (match == null) return null;
+  /// Parse a message for scheduling or reminder commands like:
+  /// - "schedule dentist next Tuesday at 10am"
+  /// - "remind me to call mom tomorrow at 5pm"
+  /// - "remember to workout tonight at 8pm"
+  Map<String, dynamic>? parseScheduleCommand(String rawMessage) {
+    final message = rawMessage.trim();
 
-    final event = match.group(1)?.trim();
-    final dateStr = match.group(2)?.trim();
-    final timeStr = match.group(3)?.trim();
+    // Check for reminder/schedule triggers
+    final schedulePatterns = [
+      RegExp(
+        r'^(?:please\s+)?(?:schedule|remind\s+me\s+to|remember\s+to|add\s+(?:an?\s+)?event|set\s+a\s+reminder\s+for)\s+(.+)$',
+        caseSensitive: false,
+      ),
+    ];
 
-    if (event == null || dateStr == null) return null;
+    String? content;
+    for (final pattern in schedulePatterns) {
+      final match = pattern.firstMatch(message);
+      if (match != null) {
+        content = match.group(1)?.trim();
+        break;
+      }
+    }
 
-    DateTime? dateTime = _parseDateTime(dateStr, timeStr);
+    if (content == null) return null;
+
+    // Separate event title and time specification
+    // e.g. "call mom tomorrow at 5pm" or "team meeting on Friday at 10am"
+    final timeSplits = [
+      RegExp(
+        r'\s+(?:on|at|for|by)\s+(tomorrow|today|tonight|next\s+\w+|\w+day|\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)(?:\s+at\s+(.+))?$',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\s+(tomorrow|today|tonight|next\s+\w+|\w+day)(?:\s+at\s+(.+))?$',
+        caseSensitive: false,
+      ),
+    ];
+
+    String eventTitle = content;
+    String dateStr = 'today';
+    String? timeStr;
+
+    for (final splitPattern in timeSplits) {
+      final splitMatch = splitPattern.firstMatch(content);
+      if (splitMatch != null) {
+        eventTitle = content.substring(0, splitMatch.start).trim();
+        dateStr = splitMatch.group(1)?.trim() ?? 'today';
+        timeStr = splitMatch.group(2)?.trim();
+        break;
+      }
+    }
+
+    if (eventTitle.isEmpty) {
+      eventTitle = content;
+    }
+
+    // Default time to 1 hour from now or 9am tomorrow if no time specified
+    final dateTime = _parseDateTime(dateStr, timeStr);
     if (dateTime == null) return null;
 
-    return {
-      'event': event,
-      'dateTime': dateTime,
-    };
+    return {'event': eventTitle, 'dateTime': dateTime};
   }
 
   DateTime? _parseDateTime(String dateStr, String? timeStr) {
-    // Simple parsing: assume "next Tuesday" or "tomorrow 10am"
-    // Use intl for better parsing
     try {
       final now = DateTime.now();
-      DateTime date;
+      DateTime date = now;
+      final dLower = dateStr.toLowerCase();
 
-      if (dateStr.contains('next')) {
-        final day = dateStr.split(' ').last;
-        final days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      if (dLower.contains('tomorrow')) {
+        date = now.add(const Duration(days: 1));
+      } else if (dLower.contains('tonight')) {
+        date = DateTime(now.year, now.month, now.day, 20, 0);
+      } else if (dLower.contains('today')) {
+        date = now;
+      } else if (dLower.contains('next')) {
+        final day = dLower.split(' ').last;
+        final days = [
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday',
+        ];
         final dayIndex = days.indexOf(day);
         if (dayIndex != -1) {
           final todayIndex = now.weekday - 1; // Monday = 0
           int daysToAdd = (dayIndex - todayIndex + 7) % 7;
           if (daysToAdd == 0) daysToAdd = 7; // Next week
           date = now.add(Duration(days: daysToAdd));
-        } else {
-          return null;
         }
-      } else if (dateStr.contains('tomorrow')) {
-        date = now.add(const Duration(days: 1));
       } else {
-        // Try parsing as date
-        date = DateTime.tryParse(dateStr) ?? now;
+        final days = [
+          'monday',
+          'tuesday',
+          'wednesday',
+          'thursday',
+          'friday',
+          'saturday',
+          'sunday',
+        ];
+        final dayIndex = days.indexOf(dLower);
+        if (dayIndex != -1) {
+          final todayIndex = now.weekday - 1;
+          int daysToAdd = (dayIndex - todayIndex + 7) % 7;
+          if (daysToAdd == 0) daysToAdd = 7;
+          date = now.add(Duration(days: daysToAdd));
+        } else {
+          date = DateTime.tryParse(dateStr) ?? now;
+        }
       }
 
-      if (timeStr != null) {
-        DateTime? time;
-        try {
-          time = DateFormat('HH:mm').parse(timeStr);
-        } catch (_) {
-          try {
-            time = DateFormat('h:mm a').parse(timeStr);
-          } catch (_) {
-            time = null;
-          }
+      int hour = 9;
+      int minute = 0;
+
+      if (timeStr != null && timeStr.isNotEmpty) {
+        final cleanedTime = timeStr.trim().toLowerCase();
+        final isPm = cleanedTime.contains('pm');
+        final isAm = cleanedTime.contains('am');
+        final digits = cleanedTime.replaceAll(RegExp(r'[^0-9:]'), '');
+
+        if (digits.contains(':')) {
+          final parts = digits.split(':');
+          hour = int.tryParse(parts[0]) ?? 9;
+          minute = int.tryParse(parts[1]) ?? 0;
+        } else {
+          hour = int.tryParse(digits) ?? 9;
+          minute = 0;
         }
-        if (time != null) {
-          date = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+
+        if (isPm && hour < 12) hour += 12;
+        if (isAm && hour == 12) hour = 0;
+      } else if (dLower.contains('tonight')) {
+        hour = 20;
+      } else {
+        // Default to next hour if scheduled for today
+        if (date.day == now.day && date.month == now.month) {
+          hour = (now.hour + 1) % 24;
+          minute = 0;
         }
       }
 
-      return date.isAfter(now) ? date : null;
+      final parsed = DateTime(date.year, date.month, date.day, hour, minute);
+      return parsed.isAfter(now) ? parsed : parsed.add(const Duration(days: 1));
     } catch (_) {
       return null;
     }
@@ -104,7 +183,8 @@ class NlpService {
   }
 
   /// Check if memory consent is given
-  bool get memoryConsent => _memoryBox?.get('consent', defaultValue: false) ?? false;
+  bool get memoryConsent =>
+      _memoryBox?.get('consent', defaultValue: true) ?? true;
 
   /// Set memory consent
   Future<void> setMemoryConsent(bool consent) async {

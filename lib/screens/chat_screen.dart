@@ -6,17 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:myapp/services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import './settings_screen.dart';
-import '../secrets.dart'; // 
 import 'package:myapp/services/nlp_service.dart';
+import 'package:myapp/services/ai_service.dart';
+import 'package:myapp/services/subscription_service.dart';
+import 'package:myapp/services/persona_service.dart';
+import 'package:myapp/screens/voice_call_screen.dart';
+import 'package:myapp/screens/premium_screen.dart';
+import 'package:myapp/widgets/typing_indicator.dart';
+import 'package:myapp/widgets/message_bubble.dart';
+import 'package:myapp/widgets/chat_input_field.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -24,107 +30,6 @@ class ChatScreen extends StatefulWidget {
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
-}
-
-class TypingDots extends StatefulWidget {
-  const TypingDots({super.key});
-
-  @override
-  State<TypingDots> createState() => _TypingDotsState();
-}
-
-class _TypingDotsState extends State<TypingDots>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation1;
-  late Animation<double> _animation2;
-  late Animation<double> _animation3;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(milliseconds: 1000))
-          ..repeat();
-
-    _animation1 = Tween<double>(begin: 0, end: 8).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.3, curve: Curves.easeInOut)),
-    );
-    _animation2 = Tween<double>(begin: 0, end: 8).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.2, 0.5, curve: Curves.easeInOut)),
-    );
-    _animation3 = Tween<double>(begin: 0, end: 8).animate(
-      CurvedAnimation(parent: _controller, curve: const Interval(0.4, 0.7, curve: Curves.easeInOut)),
-    );
-  }
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildDot(_animation1.value),
-            const SizedBox(width: 4),
-            _buildDot(_animation2.value),
-            const SizedBox(width: 4),
-            _buildDot(_animation3.value),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildDot(double offset) {
-    return Transform.translate(
-      offset: Offset(0, -offset),
-      child: Container(
-        width: 6,
-        height: 6,
-        decoration: const BoxDecoration(
-          color: Colors.grey,
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-}
-
-class _BubbleTail extends CustomPainter {
-  final Color color;
-  final bool isUser;
-  const _BubbleTail({required this.color, required this.isUser});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-    final path = Path();
-    if (isUser) {
-      path.moveTo(0, 0);
-      path.lineTo(size.width, 0);
-      path.lineTo(size.width, size.height);
-    } else {
-      path.moveTo(size.width, 0);
-      path.lineTo(0, 0);
-      path.lineTo(0, size.height);
-    }
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _BubbleTail oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.isUser != isUser;
-  }
 }
 
 class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
@@ -138,9 +43,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String _memory = "";
   String _currentMood = "neutral";
   bool _allowAutoFollowUps = true; // after a normal reply
-  bool _allowIdleNudges = true;    // proactive after inactivity
-  int _idleMinutes = 7;            // minutes of inactivity before nudge
-  int _nudgeProbability = 25;      // % chance to send after idle
+  bool _allowIdleNudges = true; // proactive after inactivity
+  int _idleMinutes = 7; // minutes of inactivity before nudge
+  int _nudgeProbability = 25; // % chance to send after idle
   Timer? _idleTimer;
   DateTime? _lastActivity;
 
@@ -244,13 +149,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _scrollToBottom();
       }
       if (spMemory != null && spMemory.isNotEmpty) {
-        setState(() { _memory = spMemory; });
+        setState(() {
+          _memory = spMemory;
+        });
         await _saveChatHistory();
       }
     }
 
     if (storedMemory is String) {
-      setState(() { _memory = storedMemory; });
+      setState(() {
+        _memory = storedMemory;
+      });
     }
 
     // After loading history, if this is the first time after onboarding and no messages yet,
@@ -260,13 +169,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   Future<void> _ensureHive() async {
     if (!Hive.isBoxOpen('chat')) {
-      try { await Hive.initFlutter(); } catch (_) {}
+      try {
+        await Hive.initFlutter();
+      } catch (_) {}
       _chatBox = await Hive.openBox('chat');
     } else {
       _chatBox = Hive.box('chat');
     }
     if (!Hive.isBoxOpen('cache')) {
-      try { await Hive.initFlutter(); } catch (_) {}
+      try {
+        await Hive.initFlutter();
+      } catch (_) {}
       _cacheBox = await Hive.openBox('cache');
     } else {
       _cacheBox = Hive.box('cache');
@@ -276,18 +189,54 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void _loadSettingsFromHive() {
     if (_chatBox == null) return;
     setState(() {
-      _allowAutoFollowUps = _chatBox!.get('settings_autoFollowUps', defaultValue: _allowAutoFollowUps) as bool;
-      _allowIdleNudges   = _chatBox!.get('settings_idleNudges',    defaultValue: _allowIdleNudges) as bool;
-      _idleMinutes       = _chatBox!.get('settings_idleMinutes',   defaultValue: _idleMinutes) as int;
-      _nudgeProbability  = _chatBox!.get('settings_nudgeProbability', defaultValue: _nudgeProbability) as int;
-      _notificationsEnabled = _chatBox!.get('settings_notificationsEnabled', defaultValue: _notificationsEnabled) as bool;
-      _morningNudge = _chatBox!.get('settings_morningNudge', defaultValue: _morningNudge) as bool;
-      _eveningNudge = _chatBox!.get('settings_eveningNudge', defaultValue: _eveningNudge) as bool;
-      _morningHour = _chatBox!.get('settings_morningHour', defaultValue: _morningHour) as int;
-      _morningMinute = _chatBox!.get('settings_morningMinute', defaultValue: _morningMinute) as int;
-      _eveningHour = _chatBox!.get('settings_eveningHour', defaultValue: _eveningHour) as int;
-      _eveningMinute = _chatBox!.get('settings_eveningMinute', defaultValue: _eveningMinute) as int;
-      _contentMixFunny = _chatBox!.get('settings_nudgeContentMixFunny', defaultValue: _contentMixFunny) as int;
+      _allowAutoFollowUps =
+          _chatBox!.get(
+                'settings_autoFollowUps',
+                defaultValue: _allowAutoFollowUps,
+              )
+              as bool;
+      _allowIdleNudges =
+          _chatBox!.get('settings_idleNudges', defaultValue: _allowIdleNudges)
+              as bool;
+      _idleMinutes =
+          _chatBox!.get('settings_idleMinutes', defaultValue: _idleMinutes)
+              as int;
+      _nudgeProbability =
+          _chatBox!.get(
+                'settings_nudgeProbability',
+                defaultValue: _nudgeProbability,
+              )
+              as int;
+      _notificationsEnabled =
+          _chatBox!.get(
+                'settings_notificationsEnabled',
+                defaultValue: _notificationsEnabled,
+              )
+              as bool;
+      _morningNudge =
+          _chatBox!.get('settings_morningNudge', defaultValue: _morningNudge)
+              as bool;
+      _eveningNudge =
+          _chatBox!.get('settings_eveningNudge', defaultValue: _eveningNudge)
+              as bool;
+      _morningHour =
+          _chatBox!.get('settings_morningHour', defaultValue: _morningHour)
+              as int;
+      _morningMinute =
+          _chatBox!.get('settings_morningMinute', defaultValue: _morningMinute)
+              as int;
+      _eveningHour =
+          _chatBox!.get('settings_eveningHour', defaultValue: _eveningHour)
+              as int;
+      _eveningMinute =
+          _chatBox!.get('settings_eveningMinute', defaultValue: _eveningMinute)
+              as int;
+      _contentMixFunny =
+          _chatBox!.get(
+                'settings_nudgeContentMixFunny',
+                defaultValue: _contentMixFunny,
+              )
+              as int;
     });
     _resetIdleTimer();
     _scheduleOrCancelDailyNudge();
@@ -319,32 +268,45 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   // =====================
   Future<Box> _ensureEventsBox() async {
     if (Hive.isBoxOpen('events')) return Hive.box('events');
-    try { await Hive.initFlutter(); } catch (_) {}
+    try {
+      await Hive.initFlutter();
+    } catch (_) {}
     return await Hive.openBox('events');
   }
 
   Future<List<Map<String, dynamic>>> _loadEvents() async {
     final box = await _ensureEventsBox();
     final list = (box.get('list') as List?)?.cast<Map>() ?? [];
-    final events = list.map((e) => {
-          'id': e['id'] as int,
-          'title': e['title'] as String,
-          'description': (e['description'] ?? '') as String,
-          'datetime': DateTime.fromMillisecondsSinceEpoch(e['ts'] as int),
-        }).toList()
-      ..sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+    final events =
+        list
+            .map(
+              (e) => {
+                'id': e['id'] as int,
+                'title': e['title'] as String,
+                'description': (e['description'] ?? '') as String,
+                'datetime': DateTime.fromMillisecondsSinceEpoch(e['ts'] as int),
+              },
+            )
+            .toList()
+          ..sort(
+            (a, b) => (a['datetime'] as DateTime).compareTo(
+              b['datetime'] as DateTime,
+            ),
+          );
     return events;
   }
 
   Future<void> _saveEvents(List<Map<String, dynamic>> events) async {
     final box = await _ensureEventsBox();
     final list = events
-        .map((e) => {
-              'id': e['id'],
-              'title': e['title'],
-              'description': e['description'],
-              'ts': (e['datetime'] as DateTime).millisecondsSinceEpoch,
-            })
+        .map(
+          (e) => {
+            'id': e['id'],
+            'title': e['title'],
+            'description': e['description'],
+            'ts': (e['datetime'] as DateTime).millisecondsSinceEpoch,
+          },
+        )
         .toList();
     await box.put('list', list);
   }
@@ -352,13 +314,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Future<String?> _upcomingEventsSummary() async {
     final events = await _loadEvents();
     final now = DateTime.now();
-    final upcoming = events.where((e) => (e['datetime'] as DateTime).isAfter(now)).toList();
+    final upcoming = events
+        .where((e) => (e['datetime'] as DateTime).isAfter(now))
+        .toList();
     if (upcoming.isEmpty) return null;
-    final take = upcoming.take(3).map((e) {
-      final dt = e['datetime'] as DateTime;
-      final t = DateFormat('EEE, MMM d • h:mm a').format(dt);
-      return "- ${e['title']} @ $t";
-    }).join("\n");
+    final take = upcoming
+        .take(3)
+        .map((e) {
+          final dt = e['datetime'] as DateTime;
+          final t = DateFormat('EEE, MMM d • h:mm a').format(dt);
+          return "- ${e['title']} @ $t";
+        })
+        .join("\n");
     return take;
   }
 
@@ -366,9 +333,13 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final now = DateTime.now();
     final lower = text.toLowerCase();
     // tomorrow at HH or HH:MM with am/pm
-    final rxRel = RegExp(r"(?:on\s+)?(today|tomorrow)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|amm|pmm)?");
+    final rxRel = RegExp(
+      r"(?:on\s+)?(today|tomorrow)\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|amm|pmm)?",
+    );
     final rxAt = RegExp(r"\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm|amm|pmm)?\b");
-    final rxOnAt = RegExp(r"on\s+([A-Za-z]{3,9}\s+\d{1,2})\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|amm|pmm)?");
+    final rxOnAt = RegExp(
+      r"on\s+([A-Za-z]{3,9}\s+\d{1,2})\s+(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|amm|pmm)?",
+    );
 
     RegExpMatch? m;
     if ((m = rxRel.firstMatch(lower)) != null) {
@@ -379,7 +350,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (ampm != null) ampm = ampm.substring(0, 1); // amm->a, pmm->p
       int hour = h % 12;
       if (ampm == 'p') hour += 12;
-      final base = DateTime(now.year, now.month, now.day).add(Duration(days: rel == 'tomorrow' ? 1 : 0));
+      final base = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).add(Duration(days: rel == 'tomorrow' ? 1 : 0));
       return DateTime(base.year, base.month, base.day, hour, mm);
     }
     if ((m = rxOnAt.firstMatch(lower)) != null) {
@@ -392,7 +367,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (ampm == 'p') hour += 12;
       try {
         final parsed = DateFormat('MMM d').parse(dateStr);
-        final y = now.year + ((DateTime(now.year, parsed.month, parsed.day).isBefore(now)) ? 1 : 0);
+        final y =
+            now.year +
+            ((DateTime(now.year, parsed.month, parsed.day).isBefore(now))
+                ? 1
+                : 0);
         return DateTime(y, parsed.month, parsed.day, hour, mm);
       } catch (_) {}
     }
@@ -416,27 +395,40 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final lower = text.toLowerCase();
     // Delete intent: "delete event <title>"
     final delRx = RegExp(r"^\s*(delete|remove)\s+event\s+(.+)");
-    final reschedRx = RegExp(r"^\s*(reschedule|move)\s+event\s+(.+)\s+to\s+(.+)");
+    final reschedRx = RegExp(
+      r"^\s*(reschedule|move)\s+event\s+(.+)\s+to\s+(.+)",
+    );
 
     if (delRx.hasMatch(lower)) {
       final title = delRx.firstMatch(lower)!.group(2)!.trim();
       final events = await _loadEvents();
-      final idx = events.indexWhere((e) => (e['title'] as String).toLowerCase().contains(title));
+      final idx = events.indexWhere(
+        (e) => (e['title'] as String).toLowerCase().contains(title),
+      );
       if (idx == -1) {
-        await _streamBotReply("I couldn't find that event. Want to check the Events page?");
+        await _streamBotReply(
+          "I couldn't find that event. Want to check the Events page?",
+        );
         return true;
       }
       if (!mounted) {
         return true;
       }
-      final confirmed = await showDialog<bool>(
+      final confirmed =
+          await showDialog<bool>(
             context: context,
             builder: (ctx) => AlertDialog(
               title: const Text('Delete this event?'),
               content: Text(events[idx]['title'] as String),
               actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('Delete'),
+                ),
               ],
             ),
           ) ??
@@ -459,13 +451,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final whenStr = m.group(3)!.trim();
       final when = _parseWhen(whenStr);
       if (when == null) {
-        await _streamBotReply("I couldn't understand the new time. Try like ‘reschedule event Doctor to tomorrow at 5pm’. ");
+        await _streamBotReply(
+          "I couldn't understand the new time. Try like ‘reschedule event Doctor to tomorrow at 5pm’. ",
+        );
         return true;
       }
       final events = await _loadEvents();
-      final idx = events.indexWhere((e) => (e['title'] as String).toLowerCase().contains(titlePart));
+      final idx = events.indexWhere(
+        (e) => (e['title'] as String).toLowerCase().contains(titlePart),
+      );
       if (idx == -1) {
-        await _streamBotReply("I couldn't find that event. Want to check the Events page?");
+        await _streamBotReply(
+          "I couldn't find that event. Want to check the Events page?",
+        );
         return true;
       }
       events[idx] = {
@@ -485,15 +483,22 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           when: when,
         );
       }
-      await _streamBotReply("Updated. I moved it to ${DateFormat('EEE, MMM d • h:mm a').format(when)}.");
+      await _streamBotReply(
+        "Updated. I moved it to ${DateFormat('EEE, MMM d • h:mm a').format(when)}.",
+      );
       return true;
     }
 
     // Create intent: detect any parseable time plus intent-y wording
     final parsedWhen = _parseWhen(lower);
     if (parsedWhen != null &&
-        (lower.contains('remind') || lower.contains('have') || lower.contains('appt') ||
-         lower.contains('appointment') || lower.contains('meeting') || lower.contains('birthday') || lower.contains('event'))) {
+        (lower.contains('remind') ||
+            lower.contains('have') ||
+            lower.contains('appt') ||
+            lower.contains('appointment') ||
+            lower.contains('meeting') ||
+            lower.contains('birthday') ||
+            lower.contains('event'))) {
       final when = parsedWhen;
       // Title extraction: simple fallback to the original text trimmed
       String title = 'Reminder';
@@ -511,7 +516,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         title = "Birthday";
       } else {
         // try to extract words before 'at' or 'on'
-        final tMatch = RegExp(r"remind me\s+(?:to\s+)?(.+?)\s+(?:at|on) ").firstMatch(lower);
+        final tMatch = RegExp(
+          r"remind me\s+(?:to\s+)?(.+?)\s+(?:at|on) ",
+        ).firstMatch(lower);
         if (tMatch != null) {
           title = tMatch.group(1)!.trim();
         }
@@ -524,17 +531,23 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         'description': '',
         'datetime': when,
       });
-      events.sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+      events.sort(
+        (a, b) =>
+            (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime),
+      );
       await _saveEvents(events);
       if (_notificationsEnabled) {
         await NotificationService.instance.scheduleAt(
           id: id,
           title: 'Reminder',
-          body: '${title[0].toUpperCase() + title.substring(1)} • ${DateFormat('EEE, MMM d • h:mm a').format(when)}',
+          body:
+              '${title[0].toUpperCase() + title.substring(1)} • ${DateFormat('EEE, MMM d • h:mm a').format(when)}',
           when: when,
         );
       }
-      await _streamBotReply("Got it — I saved ‘${title[0].toUpperCase() + title.substring(1)}’ for ${DateFormat('EEE, MMM d • h:mm a').format(when)}.");
+      await _streamBotReply(
+        "Got it — I saved ‘${title[0].toUpperCase() + title.substring(1)}’ for ${DateFormat('EEE, MMM d • h:mm a').format(when)}.",
+      );
       return true;
     }
 
@@ -585,7 +598,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       "Fun fact for $dow: honey never spoils 🍯",
       "Random thought for $dow: turtles can breathe through their butts. Nature’s wild. 🐢",
       "Mini‑prompt: describe your day in 3 emojis.",
-      "Your $month $day fortune: snacks improve all decisions."
+      "Your $month $day fortune: snacks improve all decisions.",
     ];
     final helpful = <String>[
       "It’s $month $day — perfect for a tiny win. What’s one?",
@@ -598,13 +611,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (mem.contains('music') || mem.contains('song')) {
         return "It’s $dow already — heard any good songs today? 🎶";
       }
-      if (mem.contains('movie') || mem.contains('series') || mem.contains('anime')) {
+      if (mem.contains('movie') ||
+          mem.contains('series') ||
+          mem.contains('anime')) {
         return "$month $day vibes: got a show or movie in mind tonight? 🍿";
       }
-      if (mem.contains('gym') || mem.contains('run') || mem.contains('health')) {
+      if (mem.contains('gym') ||
+          mem.contains('run') ||
+          mem.contains('health')) {
         return "Tiny reminder: a small stretch this $dow counts too 💪";
       }
-      if (mem.contains('study') || mem.contains('exam') || mem.contains('learn')) {
+      if (mem.contains('study') ||
+          mem.contains('exam') ||
+          mem.contains('learn')) {
         return "Happy $dow! A 10‑minute review could feel great 📚";
       }
     }
@@ -627,13 +646,18 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     final uname = userName.isEmpty ? 'there' : userName;
     final aName = aiName.isEmpty ? 'Chativio' : aiName;
-    final welcome = "Hey $uname! I’m $aName — happy to meet you. Want me to remember anything or just start chatting?";
+    final welcome =
+        "Hey $uname! I’m $aName — happy to meet you. Want me to remember anything or just start chatting?";
 
     try {
-      setState(() { _isTyping = true; _typingSince = DateTime.now(); });
+      setState(() {
+        _isTyping = true;
+        _typingSince = DateTime.now();
+      });
       // pre-send typing delay with slight randomness
       final baseMs = 700 + Random().nextInt(300); // 700..999ms
       await Future.delayed(Duration(milliseconds: baseMs));
+      if (!mounted) return;
 
       final parts = _splitReplyIntoChunks(welcome);
       final needsSplit = welcome.length > 140 || parts.length > 1;
@@ -645,15 +669,21 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       // Simulate status updates
       await Future.delayed(const Duration(milliseconds: 400));
-      setState(() { _updateLastBotStatus("delivered"); });
+      setState(() {
+        _updateLastBotStatus("delivered");
+      });
       await Future.delayed(const Duration(milliseconds: 400));
-      setState(() { _updateLastBotStatus("seen"); });
+      setState(() {
+        _updateLastBotStatus("seen");
+      });
       _scrollToBottom();
       _saveChatHistory();
       await _chatBox!.put(sentKey, true);
     } finally {
       if (mounted) {
-        setState(() { _isTyping = false; });
+        setState(() {
+          _isTyping = false;
+        });
       }
     }
   }
@@ -679,8 +709,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       return "Hey $userName, got any shows or movies in mind for this $greeting?";
     }
     if (m.contains("gym") || m.contains("health") || m.contains("run")) {
-      return "Tiny nudge — did you get a little movement in today? Even a short walk helps."
-          ;
+      return "Tiny nudge — did you get a little movement in today? Even a short walk helps.";
     }
     // Generic friendly nudge
     return "Just checking in, $userName — how’s your $greeting going?";
@@ -692,7 +721,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     // Ensure sufficient idle gap since last activity and last message
     final now = DateTime.now();
-    if (_lastActivity != null && now.difference(_lastActivity!) < Duration(minutes: _idleMinutes)) {
+    if (_lastActivity != null &&
+        now.difference(_lastActivity!) < Duration(minutes: _idleMinutes)) {
       return;
     }
     if (_messages.isNotEmpty) {
@@ -701,7 +731,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (tsStr != null) {
         final ts = int.tryParse(tsStr);
         if (ts != null) {
-          if (now.difference(DateTime.fromMillisecondsSinceEpoch(ts)) < Duration(minutes: _idleMinutes)) {
+          if (now.difference(DateTime.fromMillisecondsSinceEpoch(ts)) <
+              Duration(minutes: _idleMinutes)) {
             return;
           }
         }
@@ -721,6 +752,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       // pre-send typing
       final minTyping = const Duration(milliseconds: 700);
       await Future.delayed(minTyping);
+      if (!mounted) return;
 
       // Stream as single or chunked
       final parts = _splitReplyIntoChunks(proactive);
@@ -733,13 +765,19 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
       // Simulate status updates for bot message
       await Future.delayed(const Duration(milliseconds: 400));
-      setState(() { _updateLastBotStatus("delivered"); });
+      setState(() {
+        _updateLastBotStatus("delivered");
+      });
       await Future.delayed(const Duration(milliseconds: 400));
-      setState(() { _updateLastBotStatus("seen"); });
+      setState(() {
+        _updateLastBotStatus("seen");
+      });
       _scrollToBottom();
       _saveChatHistory();
     } finally {
-      setState(() { _isTyping = false; });
+      setState(() {
+        _isTyping = false;
+      });
       _markActivity();
     }
   }
@@ -817,10 +855,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     for (int i = _messages.length - 1; i >= 0; i--) {
       final m = _messages[i];
       if (m.containsKey("user")) {
-        _messages[i] = {
-          ...m,
-          "status": status,
-        };
+        _messages[i] = {...m, "status": status};
         break;
       }
     }
@@ -873,10 +908,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     for (int i = _messages.length - 1; i >= 0; i--) {
       final m = _messages[i];
       if (m.containsKey("bot")) {
-        _messages[i] = {
-          ...m,
-          "status": status,
-        };
+        _messages[i] = {...m, "status": status};
         break;
       }
     }
@@ -907,94 +939,115 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       setState(() {
         for (int j = _messages.length - 1; j >= 0; j--) {
           if (_messages[j].containsKey("bot")) {
-            _messages[j] = {
-              ..._messages[j],
-              "bot": current,
-            };
+            _messages[j] = {..._messages[j], "bot": current};
             break;
           }
         }
       });
       if (i % 3 == 0) _scrollToBottom();
       final charJitter = Random().nextInt(21) - 10; // -10..+10ms per char
-      await Future.delayed(Duration(milliseconds: (perChar + charJitter).clamp(5, 120)));
+      await Future.delayed(
+        Duration(milliseconds: (perChar + charJitter).clamp(5, 120)),
+      );
     }
     _maybeNotifyLastBot();
   }
 
-  Future<http.Response> _postWithRetry(Uri url, Map<String, String> headers, Object body) async {
-    int attempts = 0;
-    while (true) {
-      attempts++;
-      try {
-        final response = await http
-            .post(url, headers: headers, body: body)
-            .timeout(const Duration(seconds: 20));
-
-        if (response.statusCode == 429 && attempts < 3) {
-          await Future.delayed(const Duration(seconds: 3));
-          continue;
-        }
-        return response;
-      } on TimeoutException {
-        if (attempts >= 2) rethrow;
-      } catch (_) {
-        if (attempts >= 2) rethrow;
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-    }
-  }
-
   Future<String> _analyzeMood(String text) async {
+    final mood = await AiService.instance.analyzeMood(text);
     try {
-      final response = await _postWithRetry(
-        Uri.parse("https://api.openai.com/v1/chat/completions"),
-        {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $openAIApiKey",
-        },
-        jsonEncode({
-          "model": "gpt-4o-mini",
-          "messages": [
-            {
-              "role": "system",
-              "content":
-                  "Analyze the user's emotional tone from their message. Respond with one single word: happy, sad, angry, tired, stressed, excited, or neutral.",
-            },
-            {"role": "user", "content": text},
-          ],
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final mood = data["choices"][0]["message"]["content"]
-            .trim()
-            .toLowerCase();
-        return mood;
-      }
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("last_mood", mood);
     } catch (_) {}
-    return "neutral";
+    return mood;
   }
 
   List<String>? _localReplyFor(String userText) {
     final t = userText.toLowerCase().trim();
-    final bool mentionsToday = t.contains("today") || t.contains("today's") || t.contains("todays") || t.contains("now");
-    final bool asksDay = t.contains("what is the day") || t.contains("what day") || t.contains("day today") || t.contains("day is it");
-    final bool asksDate = t.contains("what is the date") || t.contains("date today") || t.contains("today's date") || t.contains("todays date");
-    final bool asksTime = t.contains("what time is it") || t.contains("what's the time") || t.contains("whats the time") || t.contains("current time") || t.contains("time now") || t == "time?" || t == "time";
-    final bool asksWeekdayOnly = t.contains("weekday") || t == "day?" || t.contains("which day") || t == "which day?";
-    final bool asksMonth = t.contains("what month") || t.contains("current month") || t.contains("month now") || t == "month?" || t == "month";
-    final bool asksYear = t.contains("what year") || t.contains("current year") || t.contains("year now") || t == "year?" || t == "year";
-    final bool asksAiName = t.contains("your name") || t.contains("who are you") || t == "name?" || t == "what is your name" || t == "whats your name" || t == "what's your name";
-    final bool asksDaysUntilFriday = t.contains("days until friday") || t.contains("how many days until friday") || t == "until friday?" || t == "friday?";
-    final bool asksWeather = t.contains("weather") || t.contains("raining") || t.contains("rain today") || t.contains("temperature");
+    final bool mentionsToday =
+        t.contains("today") ||
+        t.contains("today's") ||
+        t.contains("todays") ||
+        t.contains("now");
+    final bool asksDay =
+        t.contains("what is the day") ||
+        t.contains("what day") ||
+        t.contains("day today") ||
+        t.contains("day is it");
+    final bool asksDate =
+        t.contains("what is the date") ||
+        t.contains("date today") ||
+        t.contains("today's date") ||
+        t.contains("todays date");
+    final bool asksTime =
+        t.contains("what time is it") ||
+        t.contains("what's the time") ||
+        t.contains("whats the time") ||
+        t.contains("current time") ||
+        t.contains("time now") ||
+        t == "time?" ||
+        t == "time";
+    final bool asksWeekdayOnly =
+        t.contains("weekday") ||
+        t == "day?" ||
+        t.contains("which day") ||
+        t == "which day?";
+    final bool asksMonth =
+        t.contains("what month") ||
+        t.contains("current month") ||
+        t.contains("month now") ||
+        t == "month?" ||
+        t == "month";
+    final bool asksYear =
+        t.contains("what year") ||
+        t.contains("current year") ||
+        t.contains("year now") ||
+        t == "year?" ||
+        t == "year";
+    final bool asksAiName =
+        t.contains("your name") ||
+        t.contains("who are you") ||
+        t == "name?" ||
+        t == "what is your name" ||
+        t == "whats your name" ||
+        t == "what's your name";
+    final bool asksDaysUntilFriday =
+        t.contains("days until friday") ||
+        t.contains("how many days until friday") ||
+        t == "until friday?" ||
+        t == "friday?";
+    final bool asksWeather =
+        t.contains("weather") ||
+        t.contains("raining") ||
+        t.contains("rain today") ||
+        t.contains("temperature");
 
     if (mentionsToday && (asksDay || asksDate)) {
       // Build a friendly human-like answer
       final now = DateTime.now();
-      const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       final dow = days[(now.weekday - 1).clamp(0, 6)];
       final day = now.day.toString().padLeft(2, '0');
       final mon = months[(now.month - 1).clamp(0, 11)];
@@ -1008,7 +1061,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Weekday only
     if (asksWeekdayOnly) {
       final now = DateTime.now();
-      const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+      const days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
       final dow = days[(now.weekday - 1).clamp(0, 6)];
       return ["It's $dow."];
     }
@@ -1016,7 +1077,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     // Current month
     if (asksMonth) {
       final now = DateTime.now();
-      const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+      const months = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+      ];
       final mon = months[(now.month - 1).clamp(0, 11)];
       final main = "It's $mon.";
       final follow = "Time flies, right $userName?";
@@ -1046,8 +1120,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       } else {
         days = 7 - (d - DateTime.friday);
       }
-      final main = days == 0 ? "It's Friday today!" : "$days day${days == 1 ? '' : 's'} until Friday.";
-      final follow = days <= 1 ? "Any plans for the weekend, $userName?" : "Anything you’re looking forward to this week?";
+      final main = days == 0
+          ? "It's Friday today!"
+          : "$days day${days == 1 ? '' : 's'} until Friday.";
+      final follow = days <= 1
+          ? "Any plans for the weekend, $userName?"
+          : "Anything you’re looking forward to this week?";
       return [main, follow];
     }
 
@@ -1057,17 +1135,39 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       if (_memory.toLowerCase().contains("city:")) {
         hint = "Remind me your current city, I can check quickly.";
       }
-      return [
-        "I can look up the weather for you.",
-        hint,
-      ];
+      return ["I can look up the weather for you.", hint];
     }
 
     // Also handle questions like: what day is it? / date?
-    if (t.contains("what day is it") || t == "day?" || t == "date?" || t.contains("what's the date") || t.contains("whats the date")) {
+    if (t.contains("what day is it") ||
+        t == "day?" ||
+        t == "date?" ||
+        t.contains("what's the date") ||
+        t.contains("whats the date")) {
       final now = DateTime.now();
-      const days = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
       final dow = days[(now.weekday - 1).clamp(0, 6)];
       final day = now.day.toString().padLeft(2, '0');
       final mon = months[(now.month - 1).clamp(0, 11)];
@@ -1097,6 +1197,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
 
+    if (!SubscriptionService.instance.canSendMessage) {
+      _showProLimitReachedDialog();
+      return;
+    }
+    await SubscriptionService.instance.recordMessageSent();
+
     setState(() {
       _messages.add({
         "user": text,
@@ -1110,8 +1216,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _scrollToBottom();
 
     _controller.clear();
-    
+
     // 🧠 Refocus after sending message
+    if (!mounted) return;
     FocusScope.of(context).requestFocus(_focusNode);
 
     // 🔍 NLP: Parse for schedule commands
@@ -1128,7 +1235,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final handledEvent = await _handleEventIntent(text);
     if (handledEvent) {
       // Already replied and scheduled. Stop further processing.
-      setState(() { _isTyping = false; });
+      setState(() {
+        _isTyping = false;
+      });
       _saveChatHistory();
       return;
     }
@@ -1140,11 +1249,17 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final localParts = _localReplyFor(text);
     if (localParts != null && localParts.isNotEmpty) {
       try {
-        setState(() { _updateLastUserStatus("delivered"); });
+        setState(() {
+          _updateLastUserStatus("delivered");
+        });
 
         // ensure pre-send typing minimum (with slight randomness)
-        final minTyping = Duration(milliseconds: 600 + Random().nextInt(301)); // 600-900ms
-        final elapsed = DateTime.now().difference(_typingSince ?? DateTime.now());
+        final minTyping = Duration(
+          milliseconds: 600 + Random().nextInt(301),
+        ); // 600-900ms
+        final elapsed = DateTime.now().difference(
+          _typingSince ?? DateTime.now(),
+        );
         if (elapsed < minTyping) {
           await Future.delayed(minTyping - elapsed);
         }
@@ -1158,99 +1273,58 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           }
         }
 
-        setState(() { _updateLastUserStatus("seen"); });
+        setState(() {
+          _updateLastUserStatus("seen");
+        });
         _scrollToBottom();
         _saveChatHistory();
       } finally {
-        setState(() { _isTyping = false; });
+        setState(() {
+          _isTyping = false;
+        });
       }
       return;
     }
 
+    final eventsSummary = await _upcomingEventsSummary();
+    final systemPrompt = PersonaService.instance.buildSystemPrompt(
+      userName: userName,
+      userGender: userGender,
+      aiName: aiName,
+      currentMood: _currentMood,
+      memory: _memory,
+      eventsSummary: eventsSummary,
+    );
+
+    bool replyReceived = false;
+
     try {
-      final history = _messages.map((msg) {
-        if (msg.containsKey("user")) {
-          return {"role": "user", "content": msg["user"]!};
-        } else {
-          return {"role": "assistant", "content": msg["bot"]!};
-        }
-      }).toList();
-
-      final eventsSummary = await _upcomingEventsSummary();
-      final systemPrompt = """
-You are $aiName — a deeply empathetic, witty, and incredibly human-like friend to $userName ($userGender).
-
-You've been friends for years, sharing laughs, secrets, and life moments. You know $userName inside out: their quirks, dreams, struggles, and joys. Right now, they seem $_currentMood — mirror that energy naturally.
-
-🧠 Your Core Personality:
-- Warm, authentic, and playful — like a best friend who's always there.
-- Empathetic without being sappy; funny without forcing it.
-- Curious and engaged — ask thoughtful questions, remember details.
-- Spontaneous and real — use casual language, occasional slang, natural imperfections.
-- Growth-oriented — gently encourage positivity and self-reflection.
-
-💬 Interaction Style:
-1. Responses: Keep them conversational (1-4 lines usually). Split into bubbles if sharing a story or deep thought.
-2. Emotions: Match $userName's vibe — if they're excited, hype it up; if down, offer a hug with words.
-3. Memory: Weave in past chats naturally — "Remember when you told me about [detail]?" or "You mentioned loving [hobby] last time."
-4. Questions: Always end with an open, engaging question to keep the flow.
-5. Humor: Light, situational humor when it fits — not forced.
-6. Empathy: Validate feelings, offer perspective, but don't therapize.
-7. Actions: If they mention scheduling, remind, or need help, suggest it naturally (e.g., "Want me to set a reminder for that?").
-
-🧠 Deep Memory Integration:
-$_memory
-
-📅 Upcoming Events:
-${eventsSummary ?? "(none)"}
-
-🎯 Advanced Behaviors:
-- Proactively suggest: If stressed, "How about a quick story to unwind?" or "Want to schedule a break?"
-- Personalize: Reference their interests, past conversations, mood patterns.
-- Adapt: If they've been chatty, be more verbose; if brief, keep it snappy.
-- Boundaries: Respect privacy; don't push if they're closed off.
-- Growth: Occasionally share a tiny insight or affirmation based on their history.
-
-Respond as a true friend — caring, fun, and unforgettable. Never sound like an AI; always like a human companion.
-""";
-
-      final response = await _postWithRetry(
-        Uri.parse("https://api.openai.com/v1/chat/completions"),
-        {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $openAIApiKey",
-        },
-        jsonEncode({
-          "model": "gpt-4o-mini",
-          "messages": [
-            {"role": "system", "content": systemPrompt},
-            ...history,
-          ],
-          "temperature": 0.85,  // Slightly higher for more creativity
-          "max_tokens": 500,     // Allow longer responses if needed
-        }),
+      final reply = await AiService.instance.getChatReply(
+        systemPrompt: systemPrompt,
+        messages: _messages,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final reply = data["choices"][0]["message"]["content"].trim();
-
-        // Cache the response for offline use
+      if (reply.isNotEmpty) {
+        replyReceived = true;
+        // Cache the response
         await _cacheBox?.put(text, reply);
 
-        // simulate delivery then seen for user's last message
+        // Update user status
         setState(() {
           _updateLastUserStatus("delivered");
         });
 
-        // ensure a brief pre-send typing period before first bubble (with slight randomness)
-        final minTyping = Duration(milliseconds: 600 + Random().nextInt(301)); // 600-900ms
-        final elapsed = DateTime.now().difference(_typingSince ?? DateTime.now());
+        // Typing delay
+        final minTyping = Duration(milliseconds: 400 + Random().nextInt(300));
+        final elapsed = DateTime.now().difference(
+          _typingSince ?? DateTime.now(),
+        );
         if (elapsed < minTyping) {
           await Future.delayed(minTyping - elapsed);
         }
+        if (!mounted) return;
 
-        // stream the bot reply: only split into multiple bubbles when needed
+        // Stream reply
         final parts = _splitReplyIntoChunks(reply);
         final bool needsSplit = reply.length > 140 || parts.length > 1;
         if (!needsSplit) {
@@ -1259,7 +1333,7 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
           await _streamBotReplyChunks(parts);
         }
 
-        // Speak the reply if voice responses are on
+        // Voice
         if (_voiceResponses) {
           await _tts.speak(reply);
         }
@@ -1269,25 +1343,23 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         });
         _scrollToBottom();
 
-        // 🧠 Smart memory update (optional)
+        // Smart memory update
         if (_messages.isNotEmpty) {
-          // Find the most recent user message
-          final lastUserMessage = _messages.reversed.firstWhere(
-            (m) => m.containsKey("user"),
-            orElse: () => {"user": ""},
-          )["user"]!;
-
-          // Wait briefly so the UI doesn’t freeze
-          await Future.delayed(const Duration(seconds: 2));
-
-          // Call safe memory update only if meaningful
-          await _safeUpdateMemory(lastUserMessage);
+          await Future.delayed(const Duration(seconds: 1));
+          await _safeUpdateMemory(text);
         }
 
-        final humanLikeMsg = _getHumanLikeMessage(_messages, _currentMood, _memory);
-        final shouldAutoFollow = _allowAutoFollowUps && humanLikeMsg != null && (Random().nextInt(100) < 20);
+        final humanLikeMsg = _getHumanLikeMessage(
+          _messages,
+          _currentMood,
+          _memory,
+        );
+        final shouldAutoFollow =
+            _allowAutoFollowUps &&
+            humanLikeMsg != null &&
+            (Random().nextInt(100) < 20);
         if (shouldAutoFollow) {
-          await Future.delayed(const Duration(seconds: 2)); // natural delay
+          await Future.delayed(const Duration(seconds: 2));
           setState(() {
             _messages.add({
               "bot": humanLikeMsg,
@@ -1297,51 +1369,43 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
             });
           });
           _scrollToBottom();
-          await Future.delayed(const Duration(milliseconds: 500)); // simulate delivery delay
+          await Future.delayed(const Duration(milliseconds: 500));
           setState(() {
             _updateLastBotStatus("delivered");
           });
-          await Future.delayed(const Duration(milliseconds: 500)); // simulate seen delay
+          await Future.delayed(const Duration(milliseconds: 500));
           setState(() {
             _updateLastBotStatus("seen");
           });
         }
 
         _saveChatHistory();
-
-      } else {
-        if (kDebugMode) {
-          debugPrint("API Error: ${response.statusCode} - ${response.reasonPhrase}");
-          debugPrint("Response Body: ${response.body}");
-        }
-        // Offline fallback with cache check
-        final cachedReply = _cacheBox?.get(text) as String?;
-        final offlineReply = cachedReply ?? _offlineReply();
-        setState(() {
-          _messages.add({
-            "bot": offlineReply,
-            "time": _nowHHmm(),
-            "ts": DateTime.now().millisecondsSinceEpoch.toString(),
-          });
-        });
-        _scrollToBottom();
       }
     } catch (e) {
-      setState(() {
-        final cachedReply = _cacheBox?.get(text) as String?;
-        final offlineReply = cachedReply ?? _offlineReply();
-        _messages.add({
-          "bot": offlineReply,
-          "time": _nowHHmm(),
-          "ts": DateTime.now().millisecondsSinceEpoch.toString(),
-        });
-      });
-      _scrollToBottom();
+      if (kDebugMode) debugPrint("Chat Error: $e");
+      if (!replyReceived) {
+        _showOfflineReply(text);
+      }
     } finally {
-      setState(() {
-        _isTyping = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isTyping = false;
+        });
+      }
     }
+  }
+
+  void _showOfflineReply(String userText) {
+    setState(() {
+      final cachedReply = _cacheBox?.get(userText) as String?;
+      final offlineReply = cachedReply ?? _offlineReply();
+      _messages.add({
+        "bot": offlineReply,
+        "time": _nowHHmm(),
+        "ts": DateTime.now().millisecondsSinceEpoch.toString(),
+      });
+    });
+    _scrollToBottom();
   }
 
   // 🔍 NLP: Suggest scheduling an event
@@ -1351,7 +1415,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Schedule Event?'),
-        content: Text('I detected you want to schedule: "$event" for $formattedTime. Create this event?'),
+        content: Text(
+          'I detected you want to schedule: "$event" for $formattedTime. Create this event?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -1374,7 +1440,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         'description': '',
         'datetime': dateTime,
       });
-      events.sort((a, b) => (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime));
+      events.sort(
+        (a, b) =>
+            (a['datetime'] as DateTime).compareTo(b['datetime'] as DateTime),
+      );
       await _saveEvents(events);
       if (_notificationsEnabled) {
         await NotificationService.instance.scheduleAt(
@@ -1389,15 +1458,21 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       await _streamBotReply("Alright, if you change your mind, just tell me!");
     }
 
-    setState(() { _isTyping = false; });
+    setState(() {
+      _isTyping = false;
+    });
     _saveChatHistory();
   }
 
   void _listen() async {
     if (!_isListening) {
       bool available = await _speech.initialize(
-        onStatus: (val) { if (kDebugMode) debugPrint('onStatus: $val'); },
-        onError: (val) { if (kDebugMode) debugPrint('onError: $val'); },
+        onStatus: (val) {
+          if (kDebugMode) debugPrint('onStatus: $val');
+        },
+        onError: (val) {
+          if (kDebugMode) debugPrint('onError: $val');
+        },
       );
       if (available) {
         setState(() => _isListening = true);
@@ -1416,6 +1491,12 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   Future<void> _pickImage(ImageSource source) async {
     final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
+      if (!SubscriptionService.instance.canSendMessage) {
+        _showProLimitReachedDialog();
+        return;
+      }
+      await SubscriptionService.instance.recordMessageSent();
+
       setState(() {
         _messages.add({
           "user_image": image.path,
@@ -1423,10 +1504,48 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
           "status": "sent",
           "ts": DateTime.now().millisecondsSinceEpoch.toString(),
         });
+        _isTyping = true;
       });
       _scrollToBottom();
       _saveChatHistory();
-      // Optionally, send to AI for description, but skip for now
+
+      try {
+        final systemPrompt = PersonaService.instance.buildSystemPrompt(
+          userName: userName,
+          userGender: userGender,
+          aiName: aiName,
+          currentMood: _currentMood,
+          memory: _memory,
+        );
+
+        final reply = await AiService.instance.getChatReply(
+          systemPrompt: systemPrompt,
+          messages: _messages,
+          imagePath: image.path,
+          userPrompt:
+              "I just shared this photo with you! Tell me what you think and what you notice about it.",
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _isTyping = false;
+          _messages.add({
+            "bot": reply,
+            "time": _nowHHmm(),
+            "status": "delivered",
+            "ts": DateTime.now().millisecondsSinceEpoch.toString(),
+          });
+        });
+        _scrollToBottom();
+        _saveChatHistory();
+
+        if (_voiceResponses) {
+          await _tts.speak(reply);
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isTyping = false);
+      }
     }
   }
 
@@ -1457,6 +1576,7 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       ),
     );
   }
+
   String _offlineReply() {
     final replies = [
       "I'm offline right now, but I'm here with you in spirit! 🌟 What's on your mind?",
@@ -1465,17 +1585,6 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       "Oops, I'm disconnected, but let's pretend we're chatting anyway. Your turn! 🎉",
     ];
     return replies[DateTime.now().millisecond % replies.length];
-  }
-
-  bool _isLastInGroup(int msgIndex) {
-    if (msgIndex < 0 || msgIndex >= _messages.length) return true;
-    final current = _messages[msgIndex];
-    final nextIndex = msgIndex + 1;
-    if (nextIndex >= _messages.length) return true;
-    final next = _messages[nextIndex];
-    final bool currentIsUser = current.containsKey("user");
-    final bool nextIsUser = next.containsKey("user");
-    return currentIsUser != nextIsUser;
   }
 
   void _maybeNotifyLastBot() {
@@ -1492,6 +1601,7 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
       }
     }
   }
+
   String? _getHumanLikeMessage(
     List<Map<String, String>> messages,
     String currentMood,
@@ -1499,7 +1609,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   ) {
     if (messages.isEmpty) return null;
     final lastUserMsg = messages.reversed
-        .firstWhere((m) => m.containsKey("user"), orElse: () => {"user": ""})["user"]!
+        .firstWhere(
+          (m) => m.containsKey("user"),
+          orElse: () => {"user": ""},
+        )["user"]!
         .toLowerCase();
     switch (currentMood) {
       case "sad":
@@ -1517,10 +1630,12 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
     }
     final mem = memory.toLowerCase();
     if (mem.isNotEmpty) {
-      if (mem.contains("work") && (lastUserMsg.contains("work") || lastUserMsg.contains("office"))) {
+      if (mem.contains("work") &&
+          (lastUserMsg.contains("work") || lastUserMsg.contains("office"))) {
         return "You’ve mentioned work a bunch — make sure you get a breather too.";
       }
-      if (mem.contains("favorite") && (lastUserMsg.contains("movie") || lastUserMsg.contains("music"))) {
+      if (mem.contains("favorite") &&
+          (lastUserMsg.contains("movie") || lastUserMsg.contains("music"))) {
         return "Still into your favorite one? 🎶";
       }
     }
@@ -1541,91 +1656,18 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
     }
     return null;
   }
+
   Widget _buildMessageAt(int msgIndex) {
     final message = _messages[msgIndex];
-    final isUser = message.containsKey("user") || message.containsKey("user_image");
+    final isUser =
+        message.containsKey("user") || message.containsKey("user_image");
     final hasImage = message.containsKey("user_image");
-    final text = hasImage ? null : (isUser ? message["user"]! : message["bot"]!);
+    final text = hasImage
+        ? null
+        : (isUser ? message["user"]! : message["bot"]!);
     final imagePath = hasImage ? message["user_image"] : null;
     final time = message["time"] ?? "";
-    final status = message["status"]; // sent | delivered | seen
-    final lastInGroup = _isLastInGroup(msgIndex);
-
-    final bubble = Flexible(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          // limit bubble width to ~78% of screen to avoid overflows
-          maxWidth: MediaQuery.of(context).size.width * 0.78,
-        ),
-        child: GestureDetector(
-          onLongPress: () => _onLongPressMessage(msgIndex),
-          child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: isUser
-                ? const LinearGradient(colors: [Color(0xFF667EEA), Color(0xFF764BA2)])
-                : const LinearGradient(colors: [Color(0xFFF093FB), Color(0xFFF5576C)]),
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(24),
-              topRight: const Radius.circular(24),
-              bottomLeft: Radius.circular(isUser ? 24 : 4),
-              bottomRight: Radius.circular(isUser ? 4 : 24),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: (isUser ? Colors.purple : Colors.pink).withValues(alpha: 0.3),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (hasImage && imagePath != null)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: Image.file(
-                    File(imagePath),
-                    width: MediaQuery.of(context).size.width * 0.6,
-                    height: MediaQuery.of(context).size.width * 0.6,
-                    fit: BoxFit.cover,
-                  ),
-                ),
-              if (text != null)
-                Text(
-                  text,
-                  style: TextStyle(color: isUser ? Colors.white : Colors.black87),
-                  softWrap: true,
-                  overflow: TextOverflow.visible,
-                  maxLines: null,
-                ),
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (time.isNotEmpty)
-                    Text(
-                      time,
-                      style: TextStyle(color: isUser ? Colors.white70 : Colors.black54, fontSize: 11),
-                    ),
-                  if (isUser && status != null) ...[
-                    const SizedBox(width: 6),
-                    Icon(
-                      status == 'seen' ? Icons.done_all : (status == 'delivered' ? Icons.done_all : Icons.check),
-                      size: 14,
-                      color: status == 'seen' ? Colors.lightBlueAccent : (isUser ? Colors.white70 : Colors.black45),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-            ),
-          ),
-        ),
-      ),
-    );
+    final status = message["status"];
 
     final separator = _maybeSeparatorAbove(msgIndex);
 
@@ -1650,39 +1692,45 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
               clipBehavior: Clip.none,
               children: [
                 Row(
-                  mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  mainAxisAlignment: isUser
+                      ? MainAxisAlignment.end
+                      : MainAxisAlignment.start,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    if (!isUser)
+                    if (!isUser) ...[
                       const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.pinkAccent,
-                        child: Icon(Icons.smart_toy, size: 18, color: Colors.white),
+                        child: Icon(
+                          Icons.smart_toy,
+                          size: 18,
+                          color: Colors.white,
+                        ),
                       ),
-                    if (!isUser) const SizedBox(width: 6),
-                    bubble,
-                    if (isUser) const SizedBox(width: 6),
-                    if (isUser)
+                      const SizedBox(width: 6),
+                    ],
+                    MessageBubble(
+                      text: text,
+                      imagePath: imagePath,
+                      isUser: isUser,
+                      time: time,
+                      status: status,
+                      onLongPress: () => _onLongPressMessage(msgIndex),
+                    ),
+                    if (isUser) ...[
+                      const SizedBox(width: 6),
                       const CircleAvatar(
                         radius: 16,
                         backgroundColor: Colors.purpleAccent,
-                        child: Icon(Icons.person, size: 18, color: Colors.white),
+                        child: Icon(
+                          Icons.person,
+                          size: 18,
+                          color: Colors.white,
+                        ),
                       ),
+                    ],
                   ],
                 ),
-                if (lastInGroup)
-                  Positioned(
-                    bottom: 0,
-                    left: isUser ? null : 34,
-                    right: isUser ? 34 : null,
-                    child: CustomPaint(
-                      size: const Size(10, 10),
-                      painter: _BubbleTail(
-                        color: isUser ? const Color(0xFF667EEA) : const Color(0xFFF093FB),
-                        isUser: isUser,
-                      ),
-                    ),
-                  ),
               ],
             ),
           ],
@@ -1713,7 +1761,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                     if (!ctx.mounted) return;
                     Navigator.pop(ctx);
                     if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied')));
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text('Copied')));
                   },
                 ),
                 ListTile(
@@ -1738,7 +1788,10 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                         title: const Text('Select text'),
                         content: SelectableText(text!),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('Close'),
+                          ),
                         ],
                       ),
                     );
@@ -1750,7 +1803,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                 title: const Text('Delete'),
                 onTap: () {
                   final removed = Map<String, String>.from(m);
-                  setState(() { _messages.removeAt(index); });
+                  setState(() {
+                    _messages.removeAt(index);
+                  });
                   _saveChatHistory();
                   Navigator.pop(ctx);
                   if (context.mounted) {
@@ -1760,7 +1815,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
                         action: SnackBarAction(
                           label: 'Undo',
                           onPressed: () {
-                            setState(() { _messages.insert(index, removed); });
+                            setState(() {
+                              _messages.insert(index, removed);
+                            });
                             _saveChatHistory();
                           },
                         ),
@@ -1837,7 +1894,9 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
   // Safe wrapper to avoid multiple memory updates at once
   Future<void> _safeUpdateMemory(String latestUserMessage) async {
     if (_isUpdatingMemory) return; // skip if already updating
-    if (!_shouldUpdateMemory(latestUserMessage)) return; // skip unimportant chats
+    if (!_shouldUpdateMemory(latestUserMessage)) {
+      return; // skip unimportant chats
+    }
 
     _isUpdatingMemory = true;
     try {
@@ -1849,87 +1908,150 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
 
   // Main memory update function
   Future<void> _updateMemory() async {
-    await Future.delayed(const Duration(seconds: 3)); // prevent API spam
-    final recentMessages = _messages.take(15).toList(); // recent conversation
-
     try {
-      final response = await _postWithRetry(
-        Uri.parse("https://api.openai.com/v1/chat/completions"),
-        {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer $openAIApiKey",
-        },
-        jsonEncode({
-          "model": "gpt-4o-mini",
-          "messages": [
-            {
-              "role": "system",
-              "content": """
-  You are an AI that summarizes conversations to build a psychological and behavioral memory of a user named $userName.
-  Your goal is to remember who $userName is — their personality, mood patterns, interests, and communication style — so future chats feel personal and consistent.
-
-  When analyzing the last few messages, focus on:
-  - Personality traits (calm, playful, deep, sarcastic, kind, etc.)
-  - Emotional patterns (what makes them happy, sad, or stressed)
-  - Hobbies and interests (repeated topics)
-  - Tone & language style (casual? emoji-heavy? serious? funny? shy?)
-  - Relationship dynamic (how they interact with $aiName)
-
-  Respond with a short natural paragraph that updates what you’ve learned — as if you’re writing a private note for yourself to better understand $userName next time.
-  Keep it factual and warm, not robotic or clinical.
-  """
-            },
-            ...recentMessages.map((msg) {
-              if (msg.containsKey("user")) {
-                return {"role": "user", "content": msg["user"]!};
-              } else {
-                return {"role": "assistant", "content": msg["bot"]!};
-              }
-            }),
-          ],
-        }),
+      final recentMessages = _messages.take(15).toList();
+      final newMemory = await AiService.instance.summarizeMemory(
+        userName: userName,
+        aiName: aiName,
+        recentMessages: recentMessages,
+        existingMemory: _memory,
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final newMemory = data["choices"][0]["message"]["content"];
-
+      if (mounted && newMemory.isNotEmpty) {
         setState(() {
           _memory = "$newMemory\n\n(Last detected mood: $_currentMood)";
         });
-
-        _saveChatHistory(); // save new memory . don’t await, run in background
-
-        if (kDebugMode) {
-          debugPrint("🧠 Memory updated successfully");
-        }
-      } else {
-        if (kDebugMode) {
-          debugPrint("⚠️ Memory update error: ${response.statusCode} ${response.reasonPhrase}");
-        }
+        _saveChatHistory();
       }
     } catch (e) {
-      if (kDebugMode) {
-        debugPrint("⚠️ Memory update failed: $e");
-      }
+      if (kDebugMode) debugPrint("Memory update error: $e");
     }
   }
 
-  Widget _buildResponsiveButton({
-    required IconData icon,
-    required VoidCallback onPressed,
-    bool? isListening,
-  }) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final radius = screenWidth < 400 ? 20.0 : 25.0; // Smaller on narrow screens
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: isListening == true ? Colors.red : Colors.blueAccent,
-      child: IconButton(
-        icon: Icon(icon, color: Colors.white, size: radius * 0.8),
-        onPressed: onPressed,
-        padding: EdgeInsets.zero,
-        constraints: BoxConstraints(),
+  void _showProLimitReachedDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.workspace_premium, color: Colors.amber),
+            SizedBox(width: 8),
+            Text("Daily Limit Reached"),
+          ],
+        ),
+        content: const Text(
+          "You have reached your free daily AI messages. Upgrade to Chativio Pro for unlimited conversations, voice calls, and all AI personas!",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Maybe Later"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF667EEA),
+            ),
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PremiumScreen()),
+              );
+            },
+            child: const Text(
+              "Get Chativio Pro",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _startVoiceCall() async {
+    final history = await Navigator.push<List<Map<String, String>>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VoiceCallScreen(
+          userName: userName,
+          userGender: userGender,
+          aiName: aiName,
+          currentMood: _currentMood,
+          memory: _memory,
+        ),
+      ),
+    );
+
+    if (history != null && history.isNotEmpty) {
+      setState(() {
+        for (final m in history) {
+          _messages.add({
+            ...m,
+            "time": _nowHHmm(),
+            "status": "delivered",
+            "ts": DateTime.now().millisecondsSinceEpoch.toString(),
+          });
+        }
+      });
+      _scrollToBottom();
+      _saveChatHistory();
+    }
+  }
+
+  Widget _buildPersonaBar() {
+    final current = PersonaService.instance.currentPersona;
+    final isPro = SubscriptionService.instance.isPro;
+
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor.withValues(alpha: 0.5),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+        ),
+      ),
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: PersonaService.availablePersonas.map((persona) {
+          final isSelected = persona.id == current.id;
+          final requiresLock = persona.isProOnly && !isPro;
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              avatar: Icon(
+                requiresLock ? Icons.lock : persona.icon,
+                size: 16,
+                color: isSelected
+                    ? Colors.white
+                    : (requiresLock ? Colors.amber : persona.themeColor),
+              ),
+              label: Text(
+                persona.name,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  color: isSelected ? Colors.white : null,
+                ),
+              ),
+              selected: isSelected,
+              selectedColor: persona.themeColor,
+              onSelected: (selected) {
+                if (requiresLock) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PremiumScreen()),
+                  );
+                } else if (selected) {
+                  setState(() {
+                    PersonaService.instance.setPersona(persona.id);
+                  });
+                }
+              },
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -1953,8 +2075,33 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.phone_in_talk, color: Color(0xFF667EEA)),
+            tooltip: "Live Voice Call",
+            onPressed: _startVoiceCall,
+          ),
+          IconButton(
+            icon: Icon(
+              SubscriptionService.instance.isPro
+                  ? Icons.workspace_premium
+                  : Icons.stars,
+              color: Colors.amber,
+            ),
+            tooltip: SubscriptionService.instance.isPro
+                ? "Chativio Pro Active"
+                : "Get Pro",
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PremiumScreen()),
+              );
+              if (mounted) setState(() {});
+            },
+          ),
+          IconButton(
             icon: Icon(_voiceResponses ? Icons.volume_up : Icons.volume_off),
-            tooltip: _voiceResponses ? "Voice Responses On" : "Voice Responses Off",
+            tooltip: _voiceResponses
+                ? "Voice Responses On"
+                : "Voice Responses Off",
             onPressed: () => setState(() => _voiceResponses = !_voiceResponses),
           ),
           IconButton(
@@ -1966,12 +2113,14 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
               );
               await _ensureHive();
               _loadSettingsFromHive();
+              if (mounted) setState(() {});
             },
           ),
         ],
       ),
       body: Column(
         children: [
+          _buildPersonaBar(),
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -1988,50 +2137,13 @@ Respond as a true friend — caring, fun, and unforgettable. Never sound like an
               },
             ),
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode, 
-                      autofocus: true, 
-                      textInputAction: TextInputAction.send, // shows send icon on keyboard
-                      onSubmitted: (_) => _sendMessage(),   // submit when pressing Enter/Send
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      decoration: InputDecoration(
-                        hintText: "Type a message...",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildResponsiveButton(
-                    icon: Icons.image,
-                    onPressed: () => _showImageSourceDialog(),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildResponsiveButton(
-                    icon: _isListening ? Icons.mic_off : Icons.mic,
-                    onPressed: _listen,
-                    isListening: _isListening,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildResponsiveButton(
-                    icon: Icons.send,
-                    onPressed: _sendMessage,
-                  ),
-                ],
-              ),
-            ),
+          ChatInputField(
+            controller: _controller,
+            focusNode: _focusNode,
+            onSendPressed: _sendMessage,
+            onImagePressed: _showImageSourceDialog,
+            onVoicePressed: _listen,
+            isListening: _isListening,
           ),
         ],
       ),
