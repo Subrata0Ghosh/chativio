@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/subscription_service.dart';
 
 class PremiumScreen extends StatefulWidget {
@@ -252,20 +253,20 @@ class _PremiumScreenState extends State<PremiumScreen> {
                             ),
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.workspace_premium,
+                              const Icon(
+                                Icons.workspace_premium_rounded,
                                 color: Colors.white,
                                 size: 16,
                               ),
-                              SizedBox(width: 6),
+                              const SizedBox(width: 6),
                               Text(
                                 "CHATIVIO PRO",
-                                style: TextStyle(
+                                style: GoogleFonts.outfit(
                                   color: Colors.white,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
                                   fontSize: 12,
                                   letterSpacing: 1.2,
                                 ),
@@ -274,23 +275,28 @@ class _PremiumScreenState extends State<PremiumScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      const Text(
+                      Text(
                         "Experience AI Without Boundaries",
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           color: Colors.white,
                           fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           height: 1.2,
+                          letterSpacing: -0.3,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
+                      const SizedBox(height: 8),
+                      Text(
                         "Voice calls, vision intelligence, unlimited messaging & exclusive companion personas.",
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        style: GoogleFonts.outfit(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
 
                       const SizedBox(height: 24),

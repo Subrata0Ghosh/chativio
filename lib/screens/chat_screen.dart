@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
@@ -39,7 +40,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
 
   bool _isTyping = false;
-  DateTime? _typingSince;
   String _memory = "";
   String _currentMood = "neutral";
   bool _allowAutoFollowUps = true; // after a normal reply
@@ -652,7 +652,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     try {
       setState(() {
         _isTyping = true;
-        _typingSince = DateTime.now();
       });
       // pre-send typing delay with slight randomness
       final baseMs = 700 + Random().nextInt(300); // 700..999ms
@@ -746,7 +745,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     try {
       setState(() {
         _isTyping = true;
-        _typingSince = DateTime.now();
       });
 
       // pre-send typing
@@ -897,8 +895,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       final part = chunks[i];
       await _streamBotReply(part);
       if (i < limit - 1) {
-        final pauseMs = (450 + (DateTime.now().millisecond % 400));
-        await Future.delayed(Duration(milliseconds: pauseMs));
+        await Future.delayed(const Duration(milliseconds: 100));
       }
     }
     _maybeNotifyLastBot();
@@ -915,7 +912,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Future<void> _streamBotReply(String reply) async {
-    // Create empty bot message and progressively fill it
+    if (!mounted) return;
+    final int botMsgIndex = _messages.length;
     setState(() {
       _messages.add({
         "bot": "",
@@ -925,30 +923,52 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     });
     _scrollToBottom();
 
-    // Decide total streaming duration (with slight randomness)
-    final len = reply.length;
-    final baseTotalMs = (200 + (len * 15)).clamp(600, 2000);
-    final jitter = Random().nextInt(201) - 100; // -100..+100ms
-    final totalMs = (baseTotalMs + jitter).clamp(500, 2400);
-    final perChar = (totalMs / (len == 0 ? 1 : len)).round();
-
-    String current = "";
-    for (int i = 0; i < reply.length; i++) {
-      current += reply[i];
-      // Update last bot message text
-      setState(() {
-        for (int j = _messages.length - 1; j >= 0; j--) {
-          if (_messages[j].containsKey("bot")) {
-            _messages[j] = {..._messages[j], "bot": current};
-            break;
+    // Fast, ultra-smooth word streaming
+    final words = reply.split(' ');
+    if (words.length <= 4) {
+      // Short response: render quickly
+      await Future.delayed(const Duration(milliseconds: 50));
+      if (mounted) {
+        setState(() {
+          if (botMsgIndex < _messages.length) {
+            _messages[botMsgIndex] = {..._messages[botMsgIndex], "bot": reply};
           }
+        });
+        _scrollToBottom();
+      }
+      _maybeNotifyLastBot();
+      return;
+    }
+
+    final buffer = StringBuffer();
+    const chunkSize = 2; // Stream 2 words per tick
+    for (int i = 0; i < words.length; i += chunkSize) {
+      if (!mounted) return;
+      final end = (i + chunkSize < words.length) ? i + chunkSize : words.length;
+      for (int k = i; k < end; k++) {
+        if (buffer.isNotEmpty) buffer.write(' ');
+        buffer.write(words[k]);
+      }
+      setState(() {
+        if (botMsgIndex < _messages.length) {
+          _messages[botMsgIndex] = {
+            ..._messages[botMsgIndex],
+            "bot": buffer.toString(),
+          };
         }
       });
-      if (i % 3 == 0) _scrollToBottom();
-      final charJitter = Random().nextInt(21) - 10; // -10..+10ms per char
-      await Future.delayed(
-        Duration(milliseconds: (perChar + charJitter).clamp(5, 120)),
-      );
+      _scrollToBottom();
+      await Future.delayed(const Duration(milliseconds: 16));
+    }
+
+    // Ensure final exact string
+    if (mounted) {
+      setState(() {
+        if (botMsgIndex < _messages.length) {
+          _messages[botMsgIndex] = {..._messages[botMsgIndex], "bot": reply};
+        }
+      });
+      _scrollToBottom();
     }
     _maybeNotifyLastBot();
   }
@@ -1211,7 +1231,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         "ts": DateTime.now().millisecondsSinceEpoch.toString(),
       });
       _isTyping = true;
-      _typingSince = DateTime.now();
     });
     _scrollToBottom();
 
@@ -1253,23 +1272,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _updateLastUserStatus("delivered");
         });
 
-        // ensure pre-send typing minimum (with slight randomness)
-        final minTyping = Duration(
-          milliseconds: 600 + Random().nextInt(301),
-        ); // 600-900ms
-        final elapsed = DateTime.now().difference(
-          _typingSince ?? DateTime.now(),
-        );
-        if (elapsed < minTyping) {
-          await Future.delayed(minTyping - elapsed);
-        }
+        // Snappy local response beat
+        await Future.delayed(const Duration(milliseconds: 60));
 
         // cap to 2 bubbles for pacing
         final int limit = localParts.length > 2 ? 2 : localParts.length;
         for (int i = 0; i < limit; i++) {
           await _streamBotReply(localParts[i]);
           if (i < limit - 1) {
-            await Future.delayed(Duration(milliseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 100));
           }
         }
 
@@ -1314,14 +1325,6 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           _updateLastUserStatus("delivered");
         });
 
-        // Typing delay
-        final minTyping = Duration(milliseconds: 400 + Random().nextInt(300));
-        final elapsed = DateTime.now().difference(
-          _typingSince ?? DateTime.now(),
-        );
-        if (elapsed < minTyping) {
-          await Future.delayed(minTyping - elapsed);
-        }
         if (!mounted) return;
 
         // Stream reply
@@ -2006,14 +2009,20 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   Widget _buildPersonaBar() {
     final current = PersonaService.instance.currentPersona;
     final isPro = SubscriptionService.instance.isPro;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      height: 52,
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Theme.of(context).cardColor.withValues(alpha: 0.5),
+        color: isDark ? const Color(0x800B101E) : const Color(0x99F1F5F9),
         border: Border(
-          bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
+          bottom: BorderSide(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.08)
+                : Colors.black.withValues(alpha: 0.05),
+            width: 0.8,
+          ),
         ),
       ),
       child: ListView(
@@ -2023,28 +2032,38 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           final requiresLock = persona.isProOnly && !isPro;
 
           return Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 6),
             child: ChoiceChip(
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               avatar: Icon(
-                requiresLock ? Icons.lock : persona.icon,
-                size: 16,
+                requiresLock ? Icons.lock_rounded : persona.icon,
+                size: 14,
                 color: isSelected
                     ? Colors.white
                     : (requiresLock ? Colors.amber : persona.themeColor),
               ),
               label: Text(
                 persona.name,
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                  color: isSelected ? Colors.white : null,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : Colors.black87),
                 ),
               ),
               selected: isSelected,
               selectedColor: persona.themeColor,
+              backgroundColor: isDark
+                  ? const Color(0xFF131A2B)
+                  : const Color(0xFFE2E8F0),
+              side: BorderSide.none,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
               onSelected: (selected) {
+                HapticFeedback.selectionClick();
                 if (requiresLock) {
                   Navigator.push(
                     context,
@@ -2065,40 +2084,102 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-          ).createShader(bounds),
-          child: Text(
-            aiName,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: primary.withValues(alpha: 0.3),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(19),
+                child: Image.asset("assets/images/logo.png", fit: BoxFit.cover),
+              ),
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    aiName.isEmpty ? "Chativio" : aiName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                    ),
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Always Active",
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: isDark ? Colors.white60 : Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.phone_in_talk, color: Color(0xFF667EEA)),
+            icon: Icon(Icons.phone_in_talk_rounded, color: primary),
             tooltip: "Live Voice Call",
-            onPressed: _startVoiceCall,
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _startVoiceCall();
+            },
           ),
           IconButton(
             icon: Icon(
               SubscriptionService.instance.isPro
-                  ? Icons.workspace_premium
-                  : Icons.stars,
+                  ? Icons.workspace_premium_rounded
+                  : Icons.stars_rounded,
               color: Colors.amber,
             ),
             tooltip: SubscriptionService.instance.isPro
                 ? "Chativio Pro Active"
                 : "Get Pro",
             onPressed: () async {
+              HapticFeedback.lightImpact();
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PremiumScreen()),
@@ -2107,15 +2188,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             },
           ),
           IconButton(
-            icon: Icon(_voiceResponses ? Icons.volume_up : Icons.volume_off),
+            icon: Icon(
+              _voiceResponses
+                  ? Icons.volume_up_rounded
+                  : Icons.volume_off_rounded,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
             tooltip: _voiceResponses
                 ? "Voice Responses On"
                 : "Voice Responses Off",
-            onPressed: () => setState(() => _voiceResponses = !_voiceResponses),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              setState(() => _voiceResponses = !_voiceResponses);
+            },
           ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            icon: Icon(
+              Icons.settings_outlined,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
             onPressed: () async {
+              HapticFeedback.lightImpact();
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SettingsScreen()),

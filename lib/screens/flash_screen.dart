@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:myapp/screens/bottom_navigation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-// import 'package:myapp/screens/home_screen.dart';
 import 'package:myapp/screens/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -15,48 +15,55 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _animation;
-  late Animation<double> _textOpacity;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
 
-    // Animation for pulse effect
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 3),
+      duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
 
-    _animation = Tween<double>(
-      begin: 0.9,
-      end: 1.2,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scaleAnim = Tween<double>(begin: 0.94, end: 1.04).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic),
+    );
 
-    // Text fade-in animation
-    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.2, 0.8, curve: Curves.easeIn),
+        curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
       ),
     );
 
-    // Navigate to home after 4s
-    Timer(const Duration(seconds: 4), () async {
+    // Navigate to home after 2.2s for snappy experience
+    Timer(const Duration(milliseconds: 2200), () async {
       final prefs = await SharedPreferences.getInstance();
       final isFirstLaunch = prefs.getBool("isFirstLaunch") ?? true;
 
-      if (!mounted) return; // ✅ prevent using context if widget is disposed
+      if (!mounted) return;
 
       if (isFirstLaunch) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          PageRouteBuilder(
+            pageBuilder: (context, a1, a2) => const OnboardingScreen(),
+            transitionsBuilder: (context, a1, a2, child) =>
+                FadeTransition(opacity: a1, child: child),
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
         );
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const MainWrapper()),
+          PageRouteBuilder(
+            pageBuilder: (context, a1, a2) => const MainWrapper(),
+            transitionsBuilder: (context, a1, a2, child) =>
+                FadeTransition(opacity: a1, child: child),
+            transitionDuration: const Duration(milliseconds: 400),
+          ),
         );
       }
     });
@@ -71,116 +78,135 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFF667EEA),
-              Color(0xFF764BA2),
-              Color(0xFFF093FB),
-              Color(0xFFF5576C),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Animated glowing logo
-                ScaleTransition(
-                  scale: _animation,
-                  child: Container(
-                    width: 130,
-                    height: 130,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          blurRadius: 40,
-                          spreadRadius: 15,
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.chat_bubble_outline,
-                      color: Colors.black87,
-                      size: 65,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                // App Name with fade-in
-                FadeTransition(
-                  opacity: _textOpacity,
-                  child: const Text(
-                    "Chativio",
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Tagline with fade-in
-                FadeTransition(
-                  opacity: _textOpacity,
-                  child: const Text(
-                    "Your AI Friend, Always Here 💙",
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white70,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 25),
-                // Futuristic Loading Bar
-                SizedBox(
-                  width: 120,
-                  height: 4,
-
-                  child: TweenAnimationBuilder<double>(
-                    duration: const Duration(milliseconds: 2000),
-                    curve: Curves.easeInOut,
-                    tween: Tween<double>(begin: 0, end: 1.0),
-                    builder: (context, value, _) => ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: ShaderMask(
-                        shaderCallback: (bounds) =>
-                            const LinearGradient(
-                              colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
-                            ).createShader(
-                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                            ),
-                        child: LinearProgressIndicator(
-                          value: value,
-                          backgroundColor:
-                              Colors.transparent, // important for gradient
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+      backgroundColor: const Color(0xFF080B14),
+      body: Stack(
+        children: [
+          // Ambient background glow
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 320,
+              height: 320,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF6366F1).withValues(alpha: 0.18),
+              ),
             ),
           ),
-        ),
+          Positioned(
+            bottom: -80,
+            left: -80,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF06B6D4).withValues(alpha: 0.15),
+              ),
+            ),
+          ),
+
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Animated bespoke 3D logo
+                  ScaleTransition(
+                    scale: _scaleAnim,
+                    child: Container(
+                      width: 140,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(
+                              0xFF06B6D4,
+                            ).withValues(alpha: 0.35),
+                            blurRadius: 40,
+                            spreadRadius: 6,
+                          ),
+                          BoxShadow(
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.3),
+                            blurRadius: 60,
+                            spreadRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(70),
+                        child: Image.asset(
+                          "assets/images/logo.png",
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(
+                                color: const Color(0xFF0F172A),
+                                child: const Icon(
+                                  Icons.auto_awesome,
+                                  color: Color(0xFF38BDF8),
+                                  size: 60,
+                                ),
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  // Brand name with Apple typographic styling
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: Text(
+                      "Chativio",
+                      style: GoogleFonts.outfit(
+                        fontSize: 40,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  FadeTransition(
+                    opacity: _fadeAnim,
+                    child: Text(
+                      "Intelligent • Empathetic • Always Here",
+                      style: GoogleFonts.outfit(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        letterSpacing: 0.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // Minimal iOS Loading Indicator
+                  SizedBox(
+                    width: 100,
+                    height: 3,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(3),
+                      child: const LinearProgressIndicator(
+                        backgroundColor: Color(0x33FFFFFF),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Color(0xFF38BDF8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

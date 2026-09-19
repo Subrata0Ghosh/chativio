@@ -33,7 +33,7 @@ void main() {
 
       expect(find.text("Hello World"), findsOneWidget);
       expect(find.text("10:00 AM"), findsOneWidget);
-      expect(find.byIcon(Icons.done_all), findsOneWidget); // Seen icon
+      expect(find.byIcon(Icons.done_all_rounded), findsOneWidget); // Seen icon
     });
 
     testWidgets('MessageBubble renders correctly for Bot', (
@@ -87,9 +87,9 @@ void main() {
       );
 
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.byIcon(Icons.send), findsOneWidget);
-      expect(find.byIcon(Icons.image), findsOneWidget);
-      expect(find.byIcon(Icons.mic), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_upward_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.add_photo_alternate_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.mic_none_rounded), findsOneWidget);
     });
   });
 }

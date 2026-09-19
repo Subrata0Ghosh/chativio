@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -113,20 +115,40 @@ class _EventsScreenState extends State<EventsScreen> {
     final upcoming = data.where((e) => e["datetime"].isAfter(now)).toList();
     final past = data.where((e) => e["datetime"].isBefore(now)).toList();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Events & Reminders"),
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        title: Text(
+          "Events & Reminders",
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 20),
+        ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.mood, color: Colors.amber),
+            icon: const Icon(Icons.mood_rounded, color: Colors.amber),
             tooltip: "Mood Journal",
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
-            ),
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MoodJournalScreen()),
+              );
+            },
           ),
           PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_vert_rounded,
+              color: isDark ? Colors.white70 : Colors.black54,
+            ),
             onSelected: (value) async {
               switch (value) {
                 case 'test_now':
@@ -192,27 +214,44 @@ class _EventsScreenState extends State<EventsScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          await Future.delayed(const Duration(seconds: 1));
+          await Future.delayed(const Duration(milliseconds: 500));
           _loadEvents();
         },
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           children: [
-            // Search
+            // iOS Style Search Field
             TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search events',
-                border: OutlineInputBorder(),
+              style: GoogleFonts.outfit(fontSize: 15),
+              decoration: InputDecoration(
+                prefixIcon: Icon(
+                  Icons.search_rounded,
+                  color: isDark ? Colors.white54 : Colors.black45,
+                ),
+                hintText: 'Search your events and reminders...',
+                hintStyle: GoogleFonts.outfit(
+                  color: isDark ? Colors.white38 : Colors.black38,
+                ),
+                fillColor: isDark
+                    ? const Color(0xFF111728)
+                    : const Color(0xFFF1F5F9),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
               ),
               onChanged: (v) => setState(() => _query = v.trim()),
             ),
-            const SizedBox(height: 12),
-            const Text(
+            const SizedBox(height: 18),
+            Text(
               "Upcoming Events",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             if (upcoming.isEmpty)
               _buildEmptyPlaceholder(
                 "No upcoming events",
@@ -221,12 +260,16 @@ class _EventsScreenState extends State<EventsScreen> {
             else
               ...upcoming.map((e) => _buildEventCard(e, isUpcoming: true)),
 
-            const SizedBox(height: 20),
-            const Text(
+            const SizedBox(height: 24),
+            Text(
               "Past Events",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             if (past.isEmpty)
               _buildEmptyPlaceholder("No past events", Icons.event_busy)
             else
@@ -235,8 +278,15 @@ class _EventsScreenState extends State<EventsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addEventDialog,
-        child: const Icon(Icons.add),
+        onPressed: () {
+          HapticFeedback.lightImpact();
+          _addEventDialog();
+        },
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(Icons.add_rounded, size: 26),
       ),
     );
   }

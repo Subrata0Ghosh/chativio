@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -180,15 +181,42 @@ class _StoriesScreenState extends State<StoriesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Stories & Insights"),
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        title: Text(
+          "Stories & Insights",
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 20),
+        ),
         centerTitle: true,
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: primary,
+          indicatorWeight: 3,
+          labelColor: primary,
+          unselectedLabelColor: isDark ? Colors.white60 : Colors.black54,
+          labelStyle: GoogleFonts.outfit(
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
+          ),
           tabs: const [
-            Tab(icon: Icon(Icons.auto_stories), text: "AI Story Studio"),
-            Tab(icon: Icon(Icons.bookmark), text: "Saved Library"),
+            Tab(
+              icon: Icon(Icons.auto_stories_rounded, size: 20),
+              text: "AI Story Studio",
+            ),
+            Tab(
+              icon: Icon(Icons.bookmark_rounded, size: 20),
+              text: "Saved Library",
+            ),
           ],
         ),
       ),
@@ -200,13 +228,20 @@ class _StoriesScreenState extends State<StoriesScreen>
   }
 
   Widget _buildStoryStudioTab() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
         // Genre Chips
-        const Text(
+        Text(
           "Choose Genre",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          style: GoogleFonts.outfit(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
         ),
         const SizedBox(height: 8),
         SingleChildScrollView(
@@ -219,10 +254,20 @@ class _StoriesScreenState extends State<StoriesScreen>
                 child: ChoiceChip(
                   label: Text(genre),
                   selected: isSel,
-                  selectedColor: const Color(0xFF667EEA),
-                  labelStyle: TextStyle(
-                    color: isSel ? Colors.white : null,
-                    fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                  selectedColor: primary,
+                  backgroundColor: isDark
+                      ? const Color(0xFF131A2B)
+                      : const Color(0xFFE2E8F0),
+                  side: BorderSide.none,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  labelStyle: GoogleFonts.outfit(
+                    color: isSel
+                        ? Colors.white
+                        : (isDark ? Colors.white70 : Colors.black87),
+                    fontWeight: isSel ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: 13,
                   ),
                   onSelected: (val) {
                     if (val) setState(() => _selectedGenre = genre);
@@ -272,10 +317,10 @@ class _StoriesScreenState extends State<StoriesScreen>
               _isGenerating ? "Writing Your Story..." : "Generate AI Story ✨",
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF667EEA),
+              backgroundColor: primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(16),
               ),
             ),
           ),
@@ -285,10 +330,17 @@ class _StoriesScreenState extends State<StoriesScreen>
         // Story Display Card
         if (_currentStory != null) ...[
           Card(
-            elevation: 3,
+            elevation: 0,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.08),
+                width: 0.8,
+              ),
             ),
+            color: isDark ? const Color(0xFF111728) : Colors.white,
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
@@ -304,17 +356,15 @@ class _StoriesScreenState extends State<StoriesScreen>
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF667EEA,
-                            ).withValues(alpha: 0.15),
+                            color: primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             "${_currentStory!['genre']} • ${_currentStory!['mood']}",
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF667EEA),
+                            style: TextStyle(
+                              color: primary,
                               fontWeight: FontWeight.w600,
                               fontSize: 12,
                             ),
@@ -328,11 +378,11 @@ class _StoriesScreenState extends State<StoriesScreen>
                           IconButton(
                             icon: Icon(
                               _isPlayingAudio
-                                  ? Icons.stop_circle
-                                  : Icons.volume_up,
+                                  ? Icons.stop_circle_rounded
+                                  : Icons.volume_up_rounded,
                               color: _isPlayingAudio
                                   ? Colors.redAccent
-                                  : const Color(0xFF667EEA),
+                                  : primary,
                             ),
                             tooltip: _isPlayingAudio
                                 ? "Stop Audio"

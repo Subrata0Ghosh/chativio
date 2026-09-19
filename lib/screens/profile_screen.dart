@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -231,9 +233,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final sub = SubscriptionService.instance;
     final currentPersona = PersonaService.instance.currentPersona;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
+
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text("Profile & Settings"),
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        title: Text(
+          "Profile & Settings",
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 20),
+        ),
         centerTitle: true,
       ),
       body: Padding(
@@ -246,66 +261,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               // Avatar
               GestureDetector(
-                onTap: _pickImage,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  _pickImage();
+                },
                 child: Stack(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.blueAccent.withValues(alpha: .2),
-                      backgroundImage: _profileImagePath != null
-                          ? FileImage(File(_profileImagePath!))
-                          : null,
-                      child: _profileImagePath == null
-                          ? const Icon(
-                              Icons.person,
-                              size: 55,
-                              color: Colors.blue,
-                            )
-                          : null,
+                    Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: primary.withValues(alpha: 0.25),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: CircleAvatar(
+                        radius: 48,
+                        backgroundColor: isDark
+                            ? const Color(0xFF172033)
+                            : const Color(0xFFE2E8F0),
+                        backgroundImage: _profileImagePath != null
+                            ? FileImage(File(_profileImagePath!))
+                            : null,
+                        child: _profileImagePath == null
+                            ? Icon(
+                                Icons.person_rounded,
+                                size: 52,
+                                color: primary,
+                              )
+                            : null,
+                      ),
                     ),
                     Positioned(
                       bottom: 0,
                       right: 0,
                       child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF667EEA),
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: primary,
                           shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isDark
+                                ? const Color(0xFF080B14)
+                                : Colors.white,
+                            width: 2,
+                          ),
                         ),
                         child: const Icon(
-                          Icons.camera_alt,
+                          Icons.camera_alt_rounded,
                           color: Colors.white,
-                          size: 16,
+                          size: 15,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 _userName,
-                style: const TextStyle(
+                style: GoogleFonts.outfit(
                   fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
+                      horizontal: 12,
+                      vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.grey.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isDark
+                          ? const Color(0xFF131A2B)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isDark ? Colors.white12 : Colors.black12,
+                        width: 0.8,
+                      ),
                     ),
                     child: Text(
                       "Mood: $_lastMood",
-                      style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                      style: GoogleFonts.outfit(
+                        color: isDark
+                            ? Colors.white70
+                            : const Color(0xFF475569),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ),
                 ],
@@ -315,6 +366,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Chativio Pro Subscription Card
               GestureDetector(
                 onTap: () async {
+                  HapticFeedback.lightImpact();
                   await Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const PremiumScreen()),
@@ -322,20 +374,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   if (mounted) setState(() {});
                 },
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: sub.isPro
                           ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                          : [const Color(0xFF667EEA), const Color(0xFF764BA2)],
+                          : [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(22),
                     boxShadow: [
                       BoxShadow(
-                        color: (sub.isPro ? Colors.green : Colors.purple)
-                            .withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        color:
+                            (sub.isPro ? Colors.green : const Color(0xFF6366F1))
+                                .withValues(alpha: 0.35),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
                       ),
                     ],
                   ),

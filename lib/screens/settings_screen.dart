@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:myapp/services/ai_service.dart';
 import 'package:myapp/services/subscription_service.dart';
 import 'package:myapp/screens/premium_screen.dart';
+import 'package:myapp/providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -173,15 +177,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  Widget _buildThemeOption({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required VoidCallback onTap,
+    required bool isDark,
+    required Color primary,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: primary.withValues(alpha: 0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : Colors.black87),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: GoogleFonts.outfit(
+                  fontSize: 13,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  color: selected
+                      ? Colors.white
+                      : (isDark ? Colors.white70 : Colors.black87),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sub = SubscriptionService.instance;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Settings'),
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        title: Text(
+          'Settings',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 20),
+        ),
         actions: [
-          TextButton(onPressed: _resetDefaults, child: const Text('RESET')),
+          TextButton(
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _resetDefaults();
+            },
+            child: Text(
+              'RESET',
+              style: GoogleFonts.outfit(
+                fontWeight: FontWeight.w600,
+                color: primary,
+              ),
+            ),
+          ),
         ],
       ),
       body: ListView(
@@ -190,6 +276,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Pro Membership Banner
           GestureDetector(
             onTap: () async {
+              HapticFeedback.lightImpact();
               await Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const PremiumScreen()),
@@ -197,19 +284,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (mounted) setState(() {});
             },
             child: Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: sub.isPro
                       ? [const Color(0xFF10B981), const Color(0xFF047857)]
-                      : [const Color(0xFF667EEA), const Color(0xFF764BA2)],
+                      : [const Color(0xFF6366F1), const Color(0xFF4F46E5)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: (sub.isPro ? Colors.green : const Color(0xFF6366F1))
+                        .withValues(alpha: 0.3),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Row(
                 children: [
                   Icon(
-                    sub.isPro ? Icons.workspace_premium : Icons.stars,
+                    sub.isPro
+                        ? Icons.workspace_premium_rounded
+                        : Icons.stars_rounded,
                     color: Colors.white,
                     size: 28,
                   ),
@@ -222,9 +321,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           sub.isPro
                               ? "Chativio Pro: Active 👑"
                               : "Chativio Free Tier",
-                          style: const TextStyle(
+                          style: GoogleFonts.outfit(
                             color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             fontSize: 16,
                           ),
                         ),
@@ -232,7 +331,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           sub.isPro
                               ? "Unlimited messages & all features unlocked"
                               : "${sub.remainingFreeMessages} free messages left today",
-                          style: const TextStyle(
+                          style: GoogleFonts.outfit(
                             color: Colors.white70,
                             fontSize: 12,
                           ),
@@ -241,7 +340,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ),
                   const Icon(
-                    Icons.arrow_forward_ios,
+                    Icons.arrow_forward_ios_rounded,
                     color: Colors.white70,
                     size: 16,
                   ),
@@ -249,7 +348,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // Appearance & Dynamic Dark/Light Theme Card
+          Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: isDark ? Colors.white12 : Colors.black12,
+                width: 0.8,
+              ),
+            ),
+            color: isDark ? const Color(0xFF111728) : Colors.white,
+            elevation: 0,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.palette_outlined, color: primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Appearance & Theme",
+                        style: GoogleFonts.outfit(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Consumer<ThemeProvider>(
+                    builder: (context, themeProvider, _) {
+                      final currentMode = themeProvider.themeModeString;
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF172033)
+                              : const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: Row(
+                          children: [
+                            _buildThemeOption(
+                              label: "System",
+                              icon: Icons.brightness_auto_rounded,
+                              selected: currentMode == 'system',
+                              onTap: () => themeProvider.setThemeMode('system'),
+                              isDark: isDark,
+                              primary: primary,
+                            ),
+                            _buildThemeOption(
+                              label: "Light",
+                              icon: Icons.light_mode_rounded,
+                              selected: currentMode == 'light',
+                              onTap: () => themeProvider.setThemeMode('light'),
+                              isDark: isDark,
+                              primary: primary,
+                            ),
+                            _buildThemeOption(
+                              label: "Dark",
+                              icon: Icons.dark_mode_rounded,
+                              selected: currentMode == 'dark',
+                              onTap: () => themeProvider.setThemeMode('dark'),
+                              isDark: isDark,
+                              primary: primary,
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
           // AI Engine & API Key Configuration
           Card(

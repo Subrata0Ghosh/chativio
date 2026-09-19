@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../services/ai_service.dart';
@@ -325,17 +327,17 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
 
               Text(
                 widget.aiName,
-                style: const TextStyle(
+                style: GoogleFonts.outfit(
                   color: Colors.white,
                   fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.1,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 statusText,
-                style: TextStyle(
+                style: GoogleFonts.outfit(
                   color: orbColor,
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -347,6 +349,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
               // Animated Glowing Voice Orb
               GestureDetector(
                 onTap: () {
+                  HapticFeedback.mediumImpact();
                   if (!_isSpeaking && !_isThinking) {
                     if (_isListening) {
                       _speech.stop();
@@ -361,14 +364,14 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
                       ? _pulseAnimation
                       : const AlwaysStoppedAnimation(1.0),
                   child: Container(
-                    width: 170,
-                    height: 170,
+                    width: 190,
+                    height: 190,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
                           orbColor.withValues(alpha: 0.9),
-                          orbColor.withValues(alpha: 0.4),
+                          orbColor.withValues(alpha: 0.35),
                           Colors.transparent,
                         ],
                         stops: const [0.4, 0.7, 1.0],
@@ -376,27 +379,43 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
                       boxShadow: [
                         BoxShadow(
                           color: orbColor.withValues(alpha: 0.5),
-                          blurRadius: 35,
-                          spreadRadius: 8,
+                          blurRadius: 40,
+                          spreadRadius: 10,
                         ),
                       ],
                     ),
                     child: Center(
                       child: Container(
-                        width: 90,
-                        height: 90,
+                        width: 110,
+                        height: 110,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: orbColor,
+                          boxShadow: [
+                            BoxShadow(
+                              color: orbColor.withValues(alpha: 0.6),
+                              blurRadius: 20,
+                            ),
+                          ],
                         ),
-                        child: Icon(
-                          _isListening
-                              ? Icons.mic
-                              : (_isSpeaking
-                                    ? Icons.graphic_eq
-                                    : Icons.smart_toy),
-                          color: Colors.white,
-                          size: 45,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(55),
+                          child: Image.asset(
+                            "assets/images/onboarding_1.png",
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) =>
+                                Container(
+                                  color: orbColor,
+                                  child: Icon(
+                                    _isListening
+                                        ? Icons.mic_rounded
+                                        : (_isSpeaking
+                                              ? Icons.graphic_eq_rounded
+                                              : Icons.smart_toy_rounded),
+                                    color: Colors.white,
+                                    size: 45,
+                                  ),
+                                ),
+                          ),
                         ),
                       ),
                     ),

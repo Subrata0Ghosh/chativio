@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../services/ai_service.dart';
@@ -244,24 +246,25 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
 
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF667EEA),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                       onPressed: () {
+                        HapticFeedback.lightImpact();
                         _saveEntry();
                         Navigator.pop(ctx);
                       },
-                      child: const Text(
+                      child: Text(
                         "Save Mood Log",
-                        style: TextStyle(
+                        style: GoogleFonts.outfit(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -287,15 +290,30 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
   @override
   Widget build(BuildContext context) {
     final dist = _moodDistribution;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Mood & Wellness Journal'),
+        backgroundColor: isDark
+            ? const Color(0xCC080B14)
+            : const Color(0xCCFFFFFF),
+        elevation: 0,
+        title: Text(
+          'Mood & Wellness Journal',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w700, fontSize: 20),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
+            icon: Icon(Icons.add_circle_outline_rounded, color: primary),
             tooltip: "Log Mood",
-            onPressed: _showAddDialog,
+            onPressed: () {
+              HapticFeedback.lightImpact();
+              _showAddDialog();
+            },
           ),
         ],
       ),
@@ -305,25 +323,35 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
           // Weekly Analytics Summary Card
           Card(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.1)
+                    : Colors.black.withValues(alpha: 0.08),
+                width: 0.8,
+              ),
             ),
-            elevation: 2,
+            color: isDark ? const Color(0xFF111728) : Colors.white,
+            elevation: 0,
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           "Emotional Wellness Overview",
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 17,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
                           ),
                         ),
                       ),
@@ -334,16 +362,14 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF667EEA,
-                          ).withValues(alpha: 0.15),
+                          color: primary.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           "${_entries.length} Logs",
-                          style: const TextStyle(
-                            color: Color(0xFF667EEA),
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.outfit(
+                            color: primary,
+                            fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),
                         ),
