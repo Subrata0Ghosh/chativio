@@ -6,6 +6,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:myapp/services/ai_service.dart';
 import 'package:myapp/services/subscription_service.dart';
+import 'package:myapp/services/natural_voice_service.dart';
 import 'package:myapp/screens/premium_screen.dart';
 import 'package:myapp/providers/theme_provider.dart';
 
@@ -38,9 +39,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   String? _apiTestResult;
   bool _apiTestSuccess = false;
 
+  // Natural Voice Settings
+  String _selectedVoicePersona = 'ava';
+  double _voiceSpeed = 1.0;
+  bool _isPlayingVoiceSample = false;
+
   @override
   void initState() {
     super.initState();
+    _selectedVoicePersona = NaturalVoiceService.instance.currentPersonaId;
+    _voiceSpeed = NaturalVoiceService.instance.speechSpeed;
     box = Hive.box('chat');
     autoFollowUps =
         box.get('settings_autoFollowUps', defaultValue: autoFollowUps) as bool;
@@ -172,6 +180,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    if (_isPlayingVoiceSample) {
+      NaturalVoiceService.instance.stop();
+    }
     _apiKeyController.dispose();
     _modelController.dispose();
     super.dispose();
@@ -429,6 +440,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          // AI Natural Voice Card
+          _buildVoiceSettingsCard(isDark, primary),
           const SizedBox(height: 16),
 
           // AI Engine & API Key Configuration
@@ -806,6 +819,277 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVoiceSettingsCard(bool isDark, Color primary) {
+    final personas = NaturalVoiceService.availablePersonas;
+    final currentPersona = personas.firstWhere(
+      (p) => p.id == _selectedVoicePersona,
+      orElse: () => personas.first,
+    );
+
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isDark ? Colors.white12 : Colors.black12,
+          width: 0.8,
+        ),
+      ),
+      color: isDark ? const Color(0xFF111728) : Colors.white,
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.graphic_eq_rounded, color: primary),
+                const SizedBox(width: 8),
+                Text(
+                  "AI Natural Voice",
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    "100% Free",
+                    style: GoogleFonts.outfit(
+                      color: const Color(0xFF10B981),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Expressive human conversational voices for live voice calls and stories.",
+              style: GoogleFonts.outfit(
+                fontSize: 12.5,
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Voice selection chips
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: personas.map((p) {
+                final isSelected = p.id == _selectedVoicePersona;
+                return GestureDetector(
+                  onTap: () async {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selectedVoicePersona = p.id);
+                    await NaturalVoiceService.instance.setPersona(p.id);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? primary.withValues(alpha: isDark ? 0.25 : 0.12)
+                          : (isDark
+                                ? const Color(0xFF172033)
+                                : const Color(0xFFF1F5F9)),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected ? primary : Colors.transparent,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          p.gender == 'Female'
+                              ? Icons.face_3_rounded
+                              : Icons.face_rounded,
+                          size: 16,
+                          color: isSelected
+                              ? primary
+                              : (isDark ? Colors.white60 : Colors.black54),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          p.name,
+                          style: GoogleFonts.outfit(
+                            fontSize: 13,
+                            fontWeight: isSelected
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            color: isSelected
+                                ? primary
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          "(${p.accent.split(' ').first})",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: isSelected
+                                ? primary.withValues(alpha: 0.8)
+                                : (isDark ? Colors.white38 : Colors.black38),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Preview voice audio row
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? const Color(0xFF172033)
+                    : const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? Colors.white10 : Colors.black12,
+                  width: 0.8,
+                ),
+              ),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _isPlayingVoiceSample
+                          ? Icons.stop_circle_rounded
+                          : Icons.play_circle_fill_rounded,
+                      color: primary,
+                      size: 32,
+                    ),
+                    onPressed: () async {
+                      HapticFeedback.lightImpact();
+                      if (_isPlayingVoiceSample) {
+                        await NaturalVoiceService.instance.stop();
+                        if (mounted) {
+                          setState(() => _isPlayingVoiceSample = false);
+                        }
+                      } else {
+                        setState(() => _isPlayingVoiceSample = true);
+                        await NaturalVoiceService.instance.speak(
+                          "Hello! I am ${currentPersona.name}. It is wonderful to chat with you.",
+                          onStart: () {
+                            if (mounted) {
+                              setState(() => _isPlayingVoiceSample = true);
+                            }
+                          },
+                          onComplete: () {
+                            if (mounted) {
+                              setState(() => _isPlayingVoiceSample = false);
+                            }
+                          },
+                        );
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "${currentPersona.name} • ${currentPersona.gender}",
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13.5,
+                            color: isDark
+                                ? Colors.white
+                                : const Color(0xFF0F172A),
+                          ),
+                        ),
+                        Text(
+                          _isPlayingVoiceSample
+                              ? "Speaking live sample..."
+                              : currentPersona.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: _isPlayingVoiceSample
+                                ? primary
+                                : (isDark ? Colors.white54 : Colors.black54),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Speed Slider
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Speech Rate",
+                  style: GoogleFonts.outfit(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : Colors.black87,
+                  ),
+                ),
+                Text(
+                  "${_voiceSpeed.toStringAsFixed(1)}x",
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: primary,
+                  ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                activeTrackColor: primary,
+                thumbColor: primary,
+                overlayColor: primary.withValues(alpha: 0.15),
+                trackHeight: 4,
+              ),
+              child: Slider(
+                value: _voiceSpeed,
+                min: 0.8,
+                max: 1.2,
+                divisions: 4,
+                onChanged: (val) async {
+                  HapticFeedback.selectionClick();
+                  setState(() => _voiceSpeed = val);
+                  await NaturalVoiceService.instance.setSpeechSpeed(val);
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

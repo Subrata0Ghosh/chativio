@@ -8,7 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -19,6 +18,7 @@ import 'package:myapp/services/nlp_service.dart';
 import 'package:myapp/services/ai_service.dart';
 import 'package:myapp/services/subscription_service.dart';
 import 'package:myapp/services/persona_service.dart';
+import 'package:myapp/services/natural_voice_service.dart';
 import 'package:myapp/screens/voice_call_screen.dart';
 import 'package:myapp/screens/premium_screen.dart';
 import 'package:myapp/widgets/typing_indicator.dart';
@@ -69,7 +69,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final stt.SpeechToText _speech = stt.SpeechToText();
   bool _isListening = false;
 
-  final FlutterTts _tts = FlutterTts();
+  final NaturalVoiceService _voiceService = NaturalVoiceService.instance;
   bool _voiceResponses = false;
 
   final ImagePicker _picker = ImagePicker();
@@ -94,6 +94,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     ChatScreen.isOpen = false;
+    _voiceService.stop();
     _controller.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -1338,7 +1339,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         // Voice
         if (_voiceResponses) {
-          await _tts.speak(reply);
+          await _voiceService.speak(reply);
         }
 
         setState(() {
@@ -1543,7 +1544,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         _saveChatHistory();
 
         if (_voiceResponses) {
-          await _tts.speak(reply);
+          await _voiceService.speak(reply);
         }
       } catch (e) {
         if (!mounted) return;
@@ -2200,6 +2201,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             onPressed: () {
               HapticFeedback.selectionClick();
               setState(() => _voiceResponses = !_voiceResponses);
+              if (!_voiceResponses) {
+                _voiceService.stop();
+              }
             },
           ),
           IconButton(

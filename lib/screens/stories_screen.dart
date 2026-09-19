@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../services/ai_service.dart';
+import '../services/natural_voice_service.dart';
 
 class StoriesScreen extends StatefulWidget {
   const StoriesScreen({super.key});
@@ -17,7 +17,7 @@ class StoriesScreen extends StatefulWidget {
 class _StoriesScreenState extends State<StoriesScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final FlutterTts _tts = FlutterTts();
+  final NaturalVoiceService _voiceService = NaturalVoiceService.instance;
 
   String _userMood = "neutral";
   String _selectedGenre = "Inspirational";
@@ -49,12 +49,7 @@ class _StoriesScreenState extends State<StoriesScreen>
   }
 
   Future<void> _initTts() async {
-    await _tts.setLanguage("en-US");
-    await _tts.setSpeechRate(0.48);
-    await _tts.setPitch(1.0);
-    _tts.setCompletionHandler(() {
-      if (mounted) setState(() => _isPlayingAudio = false);
-    });
+    await _voiceService.init();
   }
 
   Future<void> _initHive() async {
@@ -155,19 +150,27 @@ class _StoriesScreenState extends State<StoriesScreen>
     }
   }
 
-  Future<void> _toggleAudio() async {
+  Future<void> _playStoryAudio() async {
     if (_isPlayingAudio) {
       await _stopAudio();
     } else if (_currentStory != null) {
       setState(() => _isPlayingAudio = true);
       final textToRead =
           "${_currentStory!['title']}.\n\n${_currentStory!['content']}\n\nKey Takeaway: ${_currentStory!['moral']}";
-      await _tts.speak(textToRead);
+      await _voiceService.speak(
+        textToRead,
+        onStart: () {
+          if (mounted) setState(() => _isPlayingAudio = true);
+        },
+        onComplete: () {
+          if (mounted) setState(() => _isPlayingAudio = false);
+        },
+      );
     }
   }
 
   Future<void> _stopAudio() async {
-    await _tts.stop();
+    await _voiceService.stop();
     if (mounted) setState(() => _isPlayingAudio = false);
   }
 
@@ -175,7 +178,7 @@ class _StoriesScreenState extends State<StoriesScreen>
   void dispose() {
     _tabController.dispose();
     _customTopicController.dispose();
-    _tts.stop();
+    _voiceService.stop();
     super.dispose();
   }
 
@@ -387,7 +390,7 @@ class _StoriesScreenState extends State<StoriesScreen>
                             tooltip: _isPlayingAudio
                                 ? "Stop Audio"
                                 : "Listen to Story",
-                            onPressed: _toggleAudio,
+                            onPressed: _playStoryAudio,
                           ),
                           IconButton(
                             icon: Icon(
@@ -528,7 +531,9 @@ class _StoriesScreenState extends State<StoriesScreen>
                 IconButton(
                   icon: const Icon(Icons.volume_up, color: Color(0xFF667EEA)),
                   onPressed: () {
-                    _tts.speak("${story['title']}.\n\n${story['content']}");
+                    _voiceService.speak(
+                      "${story['title']}.\n\n${story['content']}",
+                    );
                   },
                 ),
                 IconButton(

@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../services/ai_service.dart';
 import '../services/persona_service.dart';
+import '../services/natural_voice_service.dart';
 
 class VoiceCallScreen extends StatefulWidget {
   final String userName;
@@ -31,7 +31,7 @@ class VoiceCallScreen extends StatefulWidget {
 class _VoiceCallScreenState extends State<VoiceCallScreen>
     with SingleTickerProviderStateMixin {
   final stt.SpeechToText _speech = stt.SpeechToText();
-  final FlutterTts _tts = FlutterTts();
+  final NaturalVoiceService _voiceService = NaturalVoiceService.instance;
 
   bool _isSpeechAvailable = false;
   bool _isListening = false;
@@ -80,6 +80,8 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
 
   Future<void> _initVoice() async {
     try {
+      await _voiceService.init();
+
       _isSpeechAvailable = await _speech.initialize(
         onStatus: (status) {
           if (status == 'done' || status == 'notListening') {
@@ -96,22 +98,6 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
           if (mounted) setState(() => _isListening = false);
         },
       );
-
-      await _tts.setLanguage("en-US");
-      await _tts.setSpeechRate(0.5);
-      await _tts.setPitch(1.0);
-
-      _tts.setCompletionHandler(() {
-        if (mounted) {
-          setState(() => _isSpeaking = false);
-          // Wait a moment then listen for user response
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted && !_isMuted) {
-              _startListening();
-            }
-          });
-        }
-      });
 
       // Greet the user first
       _greetUser();
@@ -139,7 +125,22 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     });
 
     _callHistory.add({"bot": greeting});
-    await _tts.speak(greeting);
+    await _voiceService.speak(
+      greeting,
+      onStart: () {
+        if (mounted) setState(() => _isSpeaking = true);
+      },
+      onComplete: () {
+        if (mounted) {
+          setState(() => _isSpeaking = false);
+          Future.delayed(const Duration(milliseconds: 400), () {
+            if (mounted && !_isMuted) {
+              _startListening();
+            }
+          });
+        }
+      },
+    );
   }
 
   Future<void> _startListening() async {
@@ -202,7 +203,22 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
         _isSpeaking = true;
       });
 
-      await _tts.speak(reply);
+      await _voiceService.speak(
+        reply,
+        onStart: () {
+          if (mounted) setState(() => _isSpeaking = true);
+        },
+        onComplete: () {
+          if (mounted) {
+            setState(() => _isSpeaking = false);
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (mounted && !_isMuted) {
+                _startListening();
+              }
+            });
+          }
+        },
+      );
     }
   }
 
@@ -212,7 +228,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     });
     if (_isMuted) {
       _speech.stop();
-      _tts.stop();
+      _voiceService.stop();
       setState(() {
         _isListening = false;
         _isSpeaking = false;
@@ -224,7 +240,7 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
 
   void _endCall() {
     _speech.stop();
-    _tts.stop();
+    _voiceService.stop();
     _callTimer?.cancel();
     _pulseController.dispose();
     Navigator.pop(context, _callHistory);
@@ -241,13 +257,211 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
     _callTimer?.cancel();
     _pulseController.dispose();
     _speech.stop();
-    _tts.stop();
+    _voiceService.stop();
     super.dispose();
+  }
+
+  void _showVoiceSelectorModal(BuildContext context) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111728),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final currentId = _voiceService.currentPersonaId;
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 16,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Natural AI Voice",
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(
+                              0xFF10B981,
+                            ).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            "100% Free",
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFF34D399),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Human conversational voices powered by free neural synthesis.",
+                      style: GoogleFonts.outfit(
+                        color: Colors.white60,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Flexible(
+                      child: ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: NaturalVoiceService.availablePersonas.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final persona =
+                              NaturalVoiceService.availablePersonas[idx];
+                          final isSelected = persona.id == currentId;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () async {
+                              HapticFeedback.selectionClick();
+                              await _voiceService.setPersona(persona.id);
+                              setModalState(() {});
+                              if (ctx.mounted) Navigator.pop(ctx);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(
+                                        0xFF6366F1,
+                                      ).withValues(alpha: 0.18)
+                                    : Colors.white.withValues(alpha: 0.05),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF818CF8)
+                                      : Colors.white.withValues(alpha: 0.08),
+                                  width: isSelected ? 1.5 : 1,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  CircleAvatar(
+                                    radius: 18,
+                                    backgroundColor: isSelected
+                                        ? const Color(0xFF6366F1)
+                                        : Colors.white12,
+                                    child: Icon(
+                                      persona.gender == 'Female'
+                                          ? Icons.face_3_rounded
+                                          : Icons.face_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              persona.name,
+                                              style: GoogleFonts.outfit(
+                                                color: Colors.white,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 6),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 6,
+                                                    vertical: 2,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white10,
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                "${persona.gender} • ${persona.accent}",
+                                                style: const TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 10,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        Text(
+                                          persona.description,
+                                          style: const TextStyle(
+                                            color: Colors.white54,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      color: Color(0xFF818CF8),
+                                      size: 20,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final persona = PersonaService.instance.currentPersona;
+    final voicePersona = _voiceService.currentPersona;
     final statusText = _isSpeaking
         ? "Speaking..."
         : (_isThinking
@@ -279,37 +493,84 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            persona.icon,
-                            color: persona.themeColor,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              persona.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                              ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white10,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  persona.icon,
+                                  color: persona.themeColor,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    persona.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _showVoiceSelectorModal(context),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF6366F1,
+                              ).withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF6366F1,
+                                ).withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.graphic_eq_rounded,
+                                  color: Color(0xFF818CF8),
+                                  size: 14,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  voicePersona.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),
