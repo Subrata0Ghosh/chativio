@@ -218,7 +218,7 @@ class _EventsScreenState extends State<EventsScreen> {
           _loadEvents();
         },
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
           children: [
             // iOS Style Search Field
             TextField(

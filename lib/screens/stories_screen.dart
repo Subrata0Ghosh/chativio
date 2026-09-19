@@ -235,7 +235,7 @@ class _StoriesScreenState extends State<StoriesScreen>
     final primary = Theme.of(context).colorScheme.primary;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       children: [
         // Genre Chips
         Text(
@@ -500,7 +500,7 @@ class _StoriesScreenState extends State<StoriesScreen>
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
       itemCount: _favoriteStories.length,
       itemBuilder: (context, index) {
         final story = _favoriteStories[index];

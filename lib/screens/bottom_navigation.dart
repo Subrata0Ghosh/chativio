@@ -36,78 +36,87 @@ class _MainWrapperState extends State<MainWrapper> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      extendBody: true,
+      backgroundColor: isDark
+          ? const Color(0xFF080B14)
+          : const Color(0xFFF8FAFC),
+      extendBody: false,
       body: IndexedStack(index: _selectedIndex, children: _pages),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(28),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-              child: Container(
-                height: 66,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? const Color(0xE00B101E)
-                      : const Color(0xEEFFFFFF),
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: isDark
-                        ? Colors.white.withValues(alpha: 0.12)
-                        : Colors.black.withValues(alpha: 0.08),
-                    width: 0.8,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isDark
-                          ? Colors.black.withValues(alpha: 0.45)
-                          : Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 24,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+      bottomNavigationBar: isKeyboardOpen
+          ? const SizedBox.shrink()
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildNavItem(
-                      0,
-                      Icons.chat_bubble_outline_rounded,
-                      Icons.chat_bubble_rounded,
-                      "Chat",
-                      isDark,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                    child: Container(
+                      height: 66,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xE00B101E)
+                            : const Color(0xEEFFFFFF),
+                        borderRadius: BorderRadius.circular(28),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.black.withValues(alpha: 0.08),
+                          width: 0.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark
+                                ? Colors.black.withValues(alpha: 0.45)
+                                : Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildNavItem(
+                            0,
+                            Icons.chat_bubble_outline_rounded,
+                            Icons.chat_bubble_rounded,
+                            "Chat",
+                            isDark,
+                          ),
+                          _buildNavItem(
+                            1,
+                            Icons.calendar_today_outlined,
+                            Icons.calendar_month_rounded,
+                            "Events",
+                            isDark,
+                          ),
+                          _buildNavItem(
+                            2,
+                            Icons.auto_stories_outlined,
+                            Icons.auto_stories_rounded,
+                            "Stories",
+                            isDark,
+                          ),
+                          _buildNavItem(
+                            3,
+                            Icons.person_outline_rounded,
+                            Icons.person_rounded,
+                            "Profile",
+                            isDark,
+                          ),
+                        ],
+                      ),
                     ),
-                    _buildNavItem(
-                      1,
-                      Icons.calendar_today_outlined,
-                      Icons.calendar_month_rounded,
-                      "Events",
-                      isDark,
-                    ),
-                    _buildNavItem(
-                      2,
-                      Icons.auto_stories_outlined,
-                      Icons.auto_stories_rounded,
-                      "Stories",
-                      isDark,
-                    ),
-                    _buildNavItem(
-                      3,
-                      Icons.person_outline_rounded,
-                      Icons.person_rounded,
-                      "Profile",
-                      isDark,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
-      ),
     );
   }
 

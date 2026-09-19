@@ -227,23 +227,59 @@ class AiService {
     }
 
     final url = Uri.parse('https://text.pollinations.ai/');
-    final payload = jsonEncode({
-      "messages": formattedMessages,
-      "model": "openai",
-      "seed": DateTime.now().millisecond,
-      "temperature": 0.8,
-    });
 
-    final res = await http
-        .post(url, headers: {"Content-Type": "application/json"}, body: payload)
-        .timeout(const Duration(seconds: 20));
+    // Tier 1: Fast Mistral model for snappy sub-2-second conversational responses
+    try {
+      final fastPayload = jsonEncode({
+        "messages": formattedMessages,
+        "model": "mistral",
+        "seed": DateTime.now().millisecond,
+        "temperature": 0.75,
+      });
 
-    if (res.statusCode == 200) {
-      final bodyText = res.body.trim();
-      if (bodyText.isNotEmpty) {
-        return bodyText;
+      final fastRes = await http
+          .post(
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: fastPayload,
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (fastRes.statusCode == 200) {
+        final bodyText = fastRes.body.trim();
+        if (bodyText.isNotEmpty && !bodyText.startsWith("<!DOCTYPE")) {
+          return bodyText;
+        }
       }
+    } catch (_) {
+      // Fall through to Tier 2
     }
+
+    // Tier 2: OpenAI fallback model
+    try {
+      final payload = jsonEncode({
+        "messages": formattedMessages,
+        "model": "openai",
+        "seed": DateTime.now().millisecond,
+        "temperature": 0.8,
+      });
+
+      final res = await http
+          .post(
+            url,
+            headers: {"Content-Type": "application/json"},
+            body: payload,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (res.statusCode == 200) {
+        final bodyText = res.body.trim();
+        if (bodyText.isNotEmpty && !bodyText.startsWith("<!DOCTYPE")) {
+          return bodyText;
+        }
+      }
+    } catch (_) {}
+
     return null;
   }
 

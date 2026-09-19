@@ -24,6 +24,7 @@ import 'package:myapp/screens/premium_screen.dart';
 import 'package:myapp/widgets/typing_indicator.dart';
 import 'package:myapp/widgets/message_bubble.dart';
 import 'package:myapp/widgets/chat_input_field.dart';
+import 'package:myapp/services/engagement_service.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -70,6 +71,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   bool _isListening = false;
 
   final NaturalVoiceService _voiceService = NaturalVoiceService.instance;
+  final EngagementService _engagement = EngagementService.instance;
   bool _voiceResponses = false;
 
   final ImagePicker _picker = ImagePicker();
@@ -79,8 +81,15 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     super.initState();
     ChatScreen.isOpen = true;
     NlpService().init();
+    _engagement.init().then((_) {
+      if (mounted) setState(() {});
+    });
     _loadOnboardingScreenData().then((_) {
       _loadChatHistory();
+      _engagement.scheduleDailyEngagementNotifications(
+        userName: userName,
+        aiName: aiName,
+      );
     });
     _markActivity();
     _resetIdleTimer();
@@ -1223,6 +1232,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       return;
     }
     await SubscriptionService.instance.recordMessageSent();
+    _engagement.recordUserMessage().then((_) {
+      if (mounted) setState(() {});
+    });
 
     setState(() {
       _messages.add({
@@ -1713,13 +1725,16 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(width: 6),
                     ],
-                    MessageBubble(
-                      text: text,
-                      imagePath: imagePath,
-                      isUser: isUser,
-                      time: time,
-                      status: status,
-                      onLongPress: () => _onLongPressMessage(msgIndex),
+                    GestureDetector(
+                      onDoubleTap: () => _toggleMessageReaction(msgIndex, "❤️"),
+                      child: MessageBubble(
+                        text: text,
+                        imagePath: imagePath,
+                        isUser: isUser,
+                        time: time,
+                        status: status,
+                        onLongPress: () => _onLongPressMessage(msgIndex),
+                      ),
                     ),
                     if (isUser) ...[
                       const SizedBox(width: 6),
@@ -1735,12 +1750,65 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     ],
                   ],
                 ),
+                if (message.containsKey("reaction"))
+                  Positioned(
+                    bottom: -8,
+                    right: isUser ? 28 : null,
+                    left: isUser ? null : 28,
+                    child: GestureDetector(
+                      onTap: () => _toggleMessageReaction(msgIndex),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? const Color(0xFF1E293B)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white12
+                                : Colors.black12,
+                            width: 0.8,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          message["reaction"]!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _toggleMessageReaction(int index, [String reaction = "❤️"]) {
+    HapticFeedback.lightImpact();
+    if (index < 0 || index >= _messages.length) return;
+    setState(() {
+      final current = _messages[index]["reaction"];
+      if (current == reaction) {
+        _messages[index].remove("reaction");
+      } else {
+        _messages[index]["reaction"] = reaction;
+      }
+    });
+    _saveChatHistory();
   }
 
   Future<void> _onLongPressMessage(int index) async {
@@ -1751,10 +1819,49 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     if (!context.mounted) return;
     await showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return SafeArea(
           child: Wrap(
             children: [
+              // Quick Emoji Reaction Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: ["❤️", "🔥", "😊", "😂", "👍"].map((emoji) {
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _toggleMessageReaction(index, emoji);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0xFF1E293B)
+                              : const Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          emoji,
+                          style: const TextStyle(fontSize: 22),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              Divider(
+                height: 1,
+                color: isDark ? Colors.white12 : Colors.black12,
+              ),
               if (!hasImage) ...[
                 ListTile(
                   leading: const Icon(Icons.content_copy),
@@ -1803,8 +1910,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 ),
               ],
               ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Delete'),
+                leading: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                ),
+                title: const Text(
+                  'Delete',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
                 onTap: () {
                   final removed = Map<String, String>.from(m);
                   setState(() {
@@ -1838,24 +1951,42 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildTypingIndicator() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const CircleAvatar(
-            radius: 16,
-            backgroundColor: Colors.blueAccent,
-            child: Icon(Icons.smart_toy, color: Colors.white, size: 18),
+          CircleAvatar(
+            radius: 14,
+            backgroundColor: const Color(0xFF6366F1).withValues(alpha: 0.2),
+            child: const Icon(
+              Icons.smart_toy_outlined,
+              color: Color(0xFF6366F1),
+              size: 16,
+            ),
           ),
           const SizedBox(width: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFFE0E0E0),
-              borderRadius: BorderRadius.circular(20),
+              color: isDark ? const Color(0xFF161F33) : const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(18),
             ),
-            child: const TypingDots(),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const TypingDots(),
+                const SizedBox(width: 8),
+                Text(
+                  "Thinking...",
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    color: isDark ? Colors.white54 : Colors.black45,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -2007,6 +2138,114 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     }
   }
 
+  Widget _buildStreakHeader(bool isDark, Color primary) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      margin: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF111728) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? Colors.white10 : Colors.black12,
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black26
+                : Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const Text("🔥", style: TextStyle(fontSize: 14)),
+              const SizedBox(width: 6),
+              Text(
+                "${_engagement.currentStreak} Day Streak",
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: primary.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.auto_awesome, size: 12, color: primary),
+                const SizedBox(width: 4),
+                Text(
+                  "${_engagement.relationshipLevel} • ${_engagement.totalXp} XP",
+                  style: GoogleFonts.outfit(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEngagementStartersBar(bool isDark, Color primary) {
+    final starters = _engagement.getDailyStarters();
+    return Container(
+      height: 38,
+      margin: const EdgeInsets.only(bottom: 6),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: starters.length,
+        itemBuilder: (context, index) {
+          final starter = starters[index];
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ActionChip(
+              avatar: null,
+              label: Text(
+                starter,
+                style: GoogleFonts.outfit(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: isDark ? Colors.white70 : Colors.black87,
+                ),
+              ),
+              backgroundColor: isDark
+                  ? const Color(0xFF131A2B)
+                  : const Color(0xFFE2E8F0),
+              side: BorderSide(
+                color: isDark ? Colors.white12 : Colors.black12,
+                width: 0.8,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                _controller.text = starter;
+                _sendMessage();
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildPersonaBar() {
     final current = PersonaService.instance.currentPersona;
     final isPro = SubscriptionService.instance.isPro;
@@ -2130,11 +2369,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     style: GoogleFonts.outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Container(
                         width: 6,
@@ -2226,6 +2464,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),
       body: Column(
         children: [
+          _buildStreakHeader(isDark, primary),
           _buildPersonaBar(),
           Expanded(
             child: ListView.builder(
@@ -2243,6 +2482,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               },
             ),
           ),
+          _buildEngagementStartersBar(isDark, primary),
           ChatInputField(
             controller: _controller,
             focusNode: _focusNode,

@@ -257,6 +257,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           vertical: 10,
         ),
         child: SingleChildScrollView(
+          padding: const EdgeInsets.only(bottom: 80),
           child: Column(
             children: [
               // Avatar
