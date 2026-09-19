@@ -289,7 +289,7 @@ class _EventsScreenState extends State<EventsScreen> {
             isUpcoming ? Icons.event_available : Icons.event_busy,
             color: isUpcoming ? Colors.green : Colors.grey,
           ),
-          title: Text(e["title"]),
+          title: Text(e["title"], maxLines: 1, overflow: TextOverflow.ellipsis),
           subtitle: Text("${e["description"]}\n$formattedTime"),
           isThreeLine: true,
           onTap: () => _editEventDialog(e),
@@ -397,22 +397,28 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     const Text('Repeat: '),
                     const SizedBox(width: 8),
-                    DropdownButton<String>(
-                      value: recurrence,
-                      items: const [
-                        DropdownMenuItem(value: 'none', child: Text('None')),
-                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                        DropdownMenuItem(
-                          value: 'weekly',
-                          child: Text('Weekly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'monthly',
-                          child: Text('Monthly'),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setInnerState(() => recurrence = v ?? 'none'),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: recurrence,
+                        items: const [
+                          DropdownMenuItem(value: 'none', child: Text('None')),
+                          DropdownMenuItem(
+                            value: 'daily',
+                            child: Text('Daily'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'weekly',
+                            child: Text('Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'monthly',
+                            child: Text('Monthly'),
+                          ),
+                        ],
+                        onChanged: (v) =>
+                            setInnerState(() => recurrence = v ?? 'none'),
+                      ),
                     ),
                   ],
                 ),
@@ -652,22 +658,28 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     const Text('Repeat: '),
                     const SizedBox(width: 8),
-                    DropdownButton<String>(
-                      value: recurrence,
-                      items: const [
-                        DropdownMenuItem(value: 'none', child: Text('None')),
-                        DropdownMenuItem(value: 'daily', child: Text('Daily')),
-                        DropdownMenuItem(
-                          value: 'weekly',
-                          child: Text('Weekly'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'monthly',
-                          child: Text('Monthly'),
-                        ),
-                      ],
-                      onChanged: (v) =>
-                          setInnerState(() => recurrence = v ?? 'none'),
+                    Expanded(
+                      child: DropdownButton<String>(
+                        isExpanded: true,
+                        value: recurrence,
+                        items: const [
+                          DropdownMenuItem(value: 'none', child: Text('None')),
+                          DropdownMenuItem(
+                            value: 'daily',
+                            child: Text('Daily'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'weekly',
+                            child: Text('Weekly'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'monthly',
+                            child: Text('Monthly'),
+                          ),
+                        ],
+                        onChanged: (v) =>
+                            setInnerState(() => recurrence = v ?? 'none'),
+                      ),
                     ),
                   ],
                 ),

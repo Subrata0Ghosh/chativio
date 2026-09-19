@@ -181,12 +181,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 title: Row(
                   children: [
-                    Text(
-                      p.name,
-                      style: TextStyle(
-                        fontWeight: isSelected
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+                    Flexible(
+                      child: Text(
+                        p.name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
                       ),
                     ),
                     if (isLocked) ...[
@@ -608,9 +611,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Change Your Name"),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: "Enter new name"),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: "Enter new name"),
+          ),
         ),
         actions: [
           TextButton(
@@ -641,9 +646,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Change AI Name"),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(labelText: "Enter new AI name"),
+        content: SingleChildScrollView(
+          child: TextField(
+            controller: controller,
+            decoration: const InputDecoration(labelText: "Enter new AI name"),
+          ),
         ),
         actions: [
           TextButton(

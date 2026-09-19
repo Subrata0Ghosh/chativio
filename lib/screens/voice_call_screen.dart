@@ -276,29 +276,41 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white10,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(persona.icon, color: persona.themeColor, size: 16),
-                        const SizedBox(width: 6),
-                        Text(
-                          persona.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            persona.icon,
+                            color: persona.themeColor,
+                            size: 16,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              persona.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     _formatCallDuration(_callDurationSeconds),
                     style: const TextStyle(
@@ -397,66 +409,71 @@ class _VoiceCallScreenState extends State<VoiceCallScreen>
               // Live Transcription Card
               Container(
                 width: double.infinity,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.25,
+                ),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white12),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_userTranscript.isNotEmpty) ...[
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_userTranscript.isNotEmpty) ...[
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.person,
+                              size: 14,
+                              color: Colors.white54,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              widget.userName,
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _userTranscript,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
                       Row(
                         children: [
-                          const Icon(
-                            Icons.person,
-                            size: 14,
-                            color: Colors.white54,
-                          ),
+                          Icon(Icons.auto_awesome, size: 14, color: orbColor),
                           const SizedBox(width: 4),
                           Text(
-                            widget.userName,
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
+                            widget.aiName,
+                            style: TextStyle(color: orbColor, fontSize: 12),
                           ),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _userTranscript,
+                        _aiTranscript.isNotEmpty
+                            ? _aiTranscript
+                            : "Listening for you...",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 14,
+                          fontSize: 15,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
-                      const SizedBox(height: 10),
                     ],
-                    Row(
-                      children: [
-                        Icon(Icons.auto_awesome, size: 14, color: orbColor),
-                        const SizedBox(width: 4),
-                        Text(
-                          widget.aiName,
-                          style: TextStyle(color: orbColor, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _aiTranscript.isNotEmpty
-                          ? _aiTranscript
-                          : "Listening for you...",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 

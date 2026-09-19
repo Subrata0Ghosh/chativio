@@ -1936,7 +1936,12 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           children: [
             Icon(Icons.workspace_premium, color: Colors.amber),
             SizedBox(width: 8),
-            Text("Daily Limit Reached"),
+            Expanded(
+              child: Text(
+                "Daily Limit Reached",
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         content: const Text(
@@ -2003,7 +2008,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     final isPro = SubscriptionService.instance.isPro;
 
     return Container(
-      height: 48,
+      height: 52,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor.withValues(alpha: 0.5),
@@ -2020,6 +2025,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               avatar: Icon(
                 requiresLock ? Icons.lock : persona.icon,
                 size: 16,
@@ -2066,8 +2073,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ).createShader(bounds),
           child: Text(
             aiName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: Colors.white,
             ),

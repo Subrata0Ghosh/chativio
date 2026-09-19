@@ -265,11 +265,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Icon(Icons.psychology, color: Color(0xFF667EEA)),
                       SizedBox(width: 8),
-                      Text(
-                        "AI Engine & Custom API Key",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          "AI Engine & Custom API Key",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -354,7 +358,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onChanged: (_) => _save(),
                     ),
                     const SizedBox(height: 12),
-                    Row(
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 10,
+                      runSpacing: 8,
                       children: [
                         ElevatedButton.icon(
                           onPressed: _isTestingApiKey ? null : _testApiKey,
@@ -369,21 +376,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               : const Icon(Icons.network_check, size: 18),
                           label: const Text("Test Connection"),
                         ),
-                        if (_apiTestResult != null) ...[
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              _apiTestResult!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _apiTestSuccess
-                                    ? Colors.green
-                                    : Colors.red,
-                                fontWeight: FontWeight.w600,
-                              ),
+                        if (_apiTestResult != null)
+                          Text(
+                            _apiTestResult!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: _apiTestSuccess
+                                  ? Colors.green
+                                  : Colors.red,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        ],
                       ],
                     ),
                   ],

@@ -49,20 +49,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     String selected,
     ValueChanged<String> onChanged,
   ) {
-    return Row(
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
       children: [
         ChoiceChip(
           label: const Text("Male"),
           selected: selected == "Male",
           onSelected: (_) => onChanged("Male"),
         ),
-        const SizedBox(width: 10),
         ChoiceChip(
           label: const Text("Female"),
           selected: selected == "Female",
           onSelected: (_) => onChanged("Female"),
         ),
-        const SizedBox(width: 10),
         ChoiceChip(
           label: const Text("Other"),
           selected: selected == "Other",
@@ -75,21 +75,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildWelcomePage() {
     return Container(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.chat, size: 100, color: Colors.blue),
-          const SizedBox(height: 20),
-          const Text(
-            "Welcome to Chativio",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.chat, size: 100, color: Colors.blue),
+              const SizedBox(height: 20),
+              const Text(
+                "Welcome to Chativio",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Your AI companion for chat and mood tracking",
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            "Your AI companion for chat and mood tracking",
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -97,21 +101,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildChatPage() {
     return Container(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.smart_toy, size: 100, color: Colors.green),
-          const SizedBox(height: 20),
-          const Text(
-            "Chat with Your AI Friend",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.smart_toy, size: 100, color: Colors.green),
+              const SizedBox(height: 20),
+              const Text(
+                "Chat with Your AI Friend",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Engage in meaningful conversations and get personalized responses",
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            "Engage in meaningful conversations and get personalized responses",
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -119,21 +127,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget _buildMoodPage() {
     return Container(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.mood, size: 100, color: Colors.orange),
-          const SizedBox(height: 20),
-          const Text(
-            "Track Your Daily Moods",
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.mood, size: 100, color: Colors.orange),
+              const SizedBox(height: 20),
+              const Text(
+                "Track Your Daily Moods",
+                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Keep a journal of your emotions and reflect on your well-being",
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          const Text(
-            "Keep a journal of your emotions and reflect on your well-being",
-            textAlign: TextAlign.center,
-          ),
-        ],
+        ),
       ),
     );
   }

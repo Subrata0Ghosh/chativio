@@ -135,132 +135,139 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        builder: (ctx, setModalState) => ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.85,
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[400],
-                      borderRadius: BorderRadius.circular(2),
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[400],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  "How are you feeling right now?",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "How are you feeling right now?",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 14),
 
-                // Mood Options Grid
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _moodOptions.map((opt) {
-                    final isSel = _selectedMood == opt['label'];
-                    return ChoiceChip(
-                      avatar: Text(
-                        opt['emoji']!,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                      label: Text(opt['label']!),
-                      selected: isSel,
-                      selectedColor: const Color(0xFF667EEA),
-                      labelStyle: TextStyle(
-                        color: isSel ? Colors.white : null,
-                        fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
-                      ),
-                      onSelected: (val) {
-                        if (val) {
-                          setModalState(() {
-                            _selectedMood = opt['label']!;
-                            _selectedEmoji = opt['emoji']!;
-                          });
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 16),
-                const Text(
-                  "What influenced this?",
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-
-                // Triggers Wrap
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: _triggerTags.map((tag) {
-                    final isSel = _selectedTriggers.contains(tag);
-                    return FilterChip(
-                      label: Text(tag),
-                      selected: isSel,
-                      onSelected: (val) {
-                        setModalState(() {
+                  // Mood Options Grid
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _moodOptions.map((opt) {
+                      final isSel = _selectedMood == opt['label'];
+                      return ChoiceChip(
+                        avatar: Text(
+                          opt['emoji']!,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                        label: Text(opt['label']!),
+                        selected: isSel,
+                        selectedColor: const Color(0xFF667EEA),
+                        labelStyle: TextStyle(
+                          color: isSel ? Colors.white : null,
+                          fontWeight: isSel
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                        onSelected: (val) {
                           if (val) {
-                            _selectedTriggers.add(tag);
-                          } else {
-                            _selectedTriggers.remove(tag);
+                            setModalState(() {
+                              _selectedMood = opt['label']!;
+                              _selectedEmoji = opt['emoji']!;
+                            });
                           }
-                        });
-                      },
-                    );
-                  }).toList(),
-                ),
-
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _noteController,
-                  maxLines: 3,
-                  decoration: InputDecoration(
-                    hintText: "Reflect on this moment (optional note)...",
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        },
+                      );
+                    }).toList(),
                   ),
-                ),
-                const SizedBox(height: 16),
 
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF667EEA),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
+                  const SizedBox(height: 16),
+                  const Text(
+                    "What influenced this?",
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Triggers Wrap
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: _triggerTags.map((tag) {
+                      final isSel = _selectedTriggers.contains(tag);
+                      return FilterChip(
+                        label: Text(tag),
+                        selected: isSel,
+                        onSelected: (val) {
+                          setModalState(() {
+                            if (val) {
+                              _selectedTriggers.add(tag);
+                            } else {
+                              _selectedTriggers.remove(tag);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _noteController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: "Reflect on this moment (optional note)...",
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      _saveEntry();
-                      Navigator.pop(ctx);
-                    },
-                    child: const Text(
-                      "Save Mood Log",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 16),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF667EEA),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        _saveEntry();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text(
+                        "Save Mood Log",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -309,13 +316,18 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        "Emotional Wellness Overview",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                      const Expanded(
+                        child: Text(
+                          "Emotional Wellness Overview",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -492,13 +504,18 @@ class _MoodJournalScreenState extends State<MoodJournalScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  mood,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                Expanded(
+                                  child: Text(
+                                    mood,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   DateFormat('MMM d • h:mm a').format(date),
                                   style: TextStyle(

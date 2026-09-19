@@ -85,97 +85,100 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
         child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Animated glowing logo
-              ScaleTransition(
-                scale: _animation,
-                child: Container(
-                  width: 130,
-                  height: 130,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        blurRadius: 40,
-                        spreadRadius: 15,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Animated glowing logo
+                ScaleTransition(
+                  scale: _animation,
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.chat_bubble_outline,
-                    color: Colors.black87,
-                    size: 65,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 25),
-              // App Name with fade-in
-              FadeTransition(
-                opacity: _textOpacity,
-                child: const Text(
-                  "Chativio",
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 2,
-                    color: Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          blurRadius: 40,
+                          spreadRadius: 15,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(
+                      Icons.chat_bubble_outline,
+                      color: Colors.black87,
+                      size: 65,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              // Tagline with fade-in
-              FadeTransition(
-                opacity: _textOpacity,
-                child: const Text(
-                  "Your AI Friend, Always Here 💙",
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.white70,
+                const SizedBox(height: 25),
+                // App Name with fade-in
+                FadeTransition(
+                  opacity: _textOpacity,
+                  child: const Text(
+                    "Chativio",
+                    style: TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 2,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                // Tagline with fade-in
+                FadeTransition(
+                  opacity: _textOpacity,
+                  child: const Text(
+                    "Your AI Friend, Always Here 💙",
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ),
 
-              const SizedBox(height: 25),
-              // Futuristic Loading Bar
-              SizedBox(
-                width: 120,
-                height: 4,
+                const SizedBox(height: 25),
+                // Futuristic Loading Bar
+                SizedBox(
+                  width: 120,
+                  height: 4,
 
-                child: TweenAnimationBuilder<double>(
-                  duration: const Duration(milliseconds: 2000),
-                  curve: Curves.easeInOut,
-                  tween: Tween<double>(begin: 0, end: 1.0),
-                  builder: (context, value, _) => ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: ShaderMask(
-                      shaderCallback: (bounds) =>
-                          const LinearGradient(
-                            colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
-                          ).createShader(
-                            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                  child: TweenAnimationBuilder<double>(
+                    duration: const Duration(milliseconds: 2000),
+                    curve: Curves.easeInOut,
+                    tween: Tween<double>(begin: 0, end: 1.0),
+                    builder: (context, value, _) => ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: ShaderMask(
+                        shaderCallback: (bounds) =>
+                            const LinearGradient(
+                              colors: [Color(0xFFFFFFFF), Color(0xFFE0E0E0)],
+                            ).createShader(
+                              Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+                            ),
+                        child: LinearProgressIndicator(
+                          value: value,
+                          backgroundColor:
+                              Colors.transparent, // important for gradient
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            Colors.white,
                           ),
-                      child: LinearProgressIndicator(
-                        value: value,
-                        backgroundColor:
-                            Colors.transparent, // important for gradient
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                          Colors.white,
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

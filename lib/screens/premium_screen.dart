@@ -118,24 +118,26 @@ class _PremiumScreenState extends State<PremiumScreen> {
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Enter your VIP promo code to unlock Pro for free (try VIPPRO):",
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                hintText: "e.g. VIPPRO",
-                prefixIcon: Icon(Icons.vpn_key),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                "Enter your VIP promo code to unlock Pro for free (try VIPPRO):",
+                style: TextStyle(fontSize: 13),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                textCapitalization: TextCapitalization.characters,
+                decoration: const InputDecoration(
+                  hintText: "e.g. VIPPRO",
+                  prefixIcon: Icon(Icons.vpn_key),
+                ),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(
